@@ -20,9 +20,10 @@ var (
 	commit  string
 	date    string
 
-	cfgFile  string
-	manifest string
-	projects []string
+	cfgFile    string
+	manifest   string
+	projects   []string
+	preRelease bool
 
 	rootCmd = &cobra.Command{
 		Use:   "monotrack [base] [head]",
@@ -149,6 +150,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "f", "monotrack.yaml", "config file")
 	rootCmd.PersistentFlags().StringVarP(&manifest, "manifest", "m", ".monotrack-manifest.yaml", "manifest containing projects/tags")
 	rootCmd.PersistentFlags().StringSliceVar(&projects, "projects", make([]string, 0), "projects to include in operation")
+	rootCmd.PersistentFlags().BoolVarP(&preRelease, "pre-release", "p", false, "use a pre-relelease version")
 
 	rootCmd.AddCommand(tag.TagCmd)
 	rootCmd.AddCommand(bump.BumpCmd)
