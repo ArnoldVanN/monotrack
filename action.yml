@@ -1,0 +1,47 @@
+name: "Monotrack CLI"
+description: "Runs Monotrack CLI"
+author: Arno
+
+inputs:
+  args:
+    description: "Arguments to pass to Monotrack"
+    required: true
+  version:
+    description: "CLI version to use"
+    required: false
+    default: "latest"
+  config:
+    description: "Name of the configuration file"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Monotrack
+      shell: bash
+      run: |
+        VERSION="${{ inputs.version }}"
+        if [ "$VERSION" = "latest" ]; then
+          VERSION=$(curl -s https://api.github.com/repos/arnoldvann/monotrack/releases/latest | jq -r .tag_name)
+        fi
+
+        OS=$(uname | tr '[:upper:]' '[:lower:]')
+        ARCH=$(uname -m | sed 's/x86_64/amd64/')
+
+        curl -L \
+          "https://github.com/arnoldvann/monotrack/releases/download/${VERSION}/monotrack_${OS}_${ARCH}" \
+          -o mycli
+
+        chmod +x monotrack
+        sudo mv monotrack /usr/local/bin/monotrack
+
+    - name: Run monotrack
+      shell: bash
+      run: |
+        CMD="monotrack"
+
+        if [ -n "${{ inputs.config }}" ]; then
+          CMD="$CMD --config ${{ inputs.config }}"
+        fi
+
+        $CMD ${{ inputs.args }}
