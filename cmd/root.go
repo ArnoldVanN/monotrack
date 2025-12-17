@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/arnoldvann/monotrack/cmd/bump"
 	"github.com/arnoldvann/monotrack/cmd/tag"
@@ -20,15 +19,12 @@ var (
 	commit  string
 	date    string
 
-	cfgFile    string
-	manifest   string
-	projects   []string
-	preRelease bool
+	cfgFile  string
+	manifest string
+	projects []string
 
 	rootCmd = &cobra.Command{
-		Use:   "monotrack [base] [head]",
 		Short: "A tool for versioning applications and packages in a monorepo",
-		Args:  cobra.ExactArgs(2),
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			if cmd.Name() == "init" {
 				return nil // skip
@@ -55,54 +51,6 @@ var (
 
 			app.Init(cfg, p)
 
-			return nil
-		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			base := args[0]
-			head := args[1]
-
-			diff, err := git.GitDiff(base, head)
-			if err != nil {
-				return err
-			}
-
-			lines := strings.Split(strings.TrimSpace(diff), "\n")
-			if len(lines) == 0 {
-				fmt.Println("No changes detected")
-				return nil
-			}
-
-			// set of parent project names
-			reverseDeps := make(map[string]map[string]struct{})
-
-			for _, p := range app.State.Projects {
-				for _, d := range p.ListDependencies() {
-					if reverseDeps[d.Name()] == nil {
-						reverseDeps[d.Name()] = make(map[string]struct{})
-					}
-					reverseDeps[d.Name()][p.Name()] = struct{}{}
-				}
-			}
-
-			changedMap := make(map[string]struct{})
-
-			for _, p := range app.State.Projects {
-				for _, l := range lines {
-					if strings.Contains(l, p.Path()) {
-						changedMap[p.Name()] = struct{}{}
-						collectParents(p.Name(), reverseDeps, changedMap)
-					}
-				}
-			}
-
-			changed := make([]string, 0, len(changedMap))
-			for k := range changedMap {
-				changed = append(changed, k)
-			}
-
-			for _, c := range changed {
-				fmt.Printf("%v\n", c)
-			}
 			return nil
 		},
 	}
@@ -150,7 +98,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "f", "monotrack.yaml", "config file")
 	rootCmd.PersistentFlags().StringVarP(&manifest, "manifest", "m", ".monotrack-manifest.yaml", "manifest containing projects/tags")
 	rootCmd.PersistentFlags().StringSliceVar(&projects, "projects", make([]string, 0), "projects to include in operation")
-	rootCmd.PersistentFlags().BoolVarP(&preRelease, "pre-release", "p", false, "use a pre-relelease version")
 
 	rootCmd.AddCommand(tag.TagCmd)
 	rootCmd.AddCommand(bump.BumpCmd)
