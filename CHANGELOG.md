@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/ArnoldVanN/monotrack/compare/v0.1.0...v0.1.1) (2025-12-17)
+
+
+### Bug Fixes
+
+* Remove branch for push event in publish workflow ([b48ef8f](https://github.com/ArnoldVanN/monotrack/commit/b48ef8f57787ebdb4eda292cd77870e811f6c222))
+
 ## [0.1.0](https://github.com/ArnoldVanN/monotrack/compare/v0.0.2...v0.1.0) (2025-12-17)
 
 
