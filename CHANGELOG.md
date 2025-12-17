@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/ArnoldVanN/monotrack/compare/v0.1.1...v0.1.2) (2025-12-17)
+
+
+### Bug Fixes
+
+* trigger release ([b0a6f4c](https://github.com/ArnoldVanN/monotrack/commit/b0a6f4ca5f86be84581faf38a1441eb1176c59ac))
+
 ## [0.1.1](https://github.com/ArnoldVanN/monotrack/compare/v0.1.0...v0.1.1) (2025-12-17)
 
 
