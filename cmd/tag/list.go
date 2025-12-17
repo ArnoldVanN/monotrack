@@ -17,13 +17,8 @@ var (
 	listCmd = &cobra.Command{
 		Use:   "list",
 		Short: "List all tags",
-		Long:  "Lists the tags for the specified projects. Expects tags to contain the same names as defined in the configuration file. For example proj-v1.2.3",
+		Long:  "Lists the tags for the specified projects. Expects tags to contain the same project names as defined in the configuration file. For example frontend-v1.2.3",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			for p, c := range app.State.Projects {
-				fmt.Printf("project: %v\n type: %v\n", p, c.GetType())
-				fmt.Printf("    dependencies: %v\n", c.ListDependencies())
-			}
-
 			tags, err := git.GetTags()
 			if err != nil {
 				return err
@@ -32,11 +27,10 @@ var (
 			lines := strings.Split(strings.TrimSpace(tags), "\n")
 
 			if len(lines) == 0 {
-				fmt.Println("No tags matching specified projects")
 				return nil
 			}
 
-			out := make([]string, len(lines))
+			out := make([]string, 0)
 
 			for _, p := range app.State.Projects {
 				for _, l := range lines {
@@ -46,7 +40,9 @@ var (
 				}
 			}
 
-			fmt.Println(out)
+			for _, o := range out {
+				fmt.Println(o)
+			}
 			return nil
 		},
 	}

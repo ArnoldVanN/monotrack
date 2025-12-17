@@ -3,7 +3,6 @@ package projects
 import (
 	"fmt"
 	"os"
-	"slices"
 )
 
 type Config struct {
@@ -48,6 +47,7 @@ type Project interface {
 	Path() string
 	GetVersion() (string, error)
 	GetType() projectType
+	GetTags() ([]string, error)
 	Bump(kind BumpKind) error
 	AddDependency(Project)
 	ListDependencies() []Project
@@ -85,19 +85,28 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-func BuildProjects(cfg *Config, p []string) (map[string]Project, error) {
+func BuildProjects(config *Config, roots []string) (map[string]Project, error) {
 	projects := make(map[string]Project)
 
-	for name := range cfg.Projects {
-		// if user defined projects via flag, only build those
-		if len(p) > 0 {
-			found := slices.Contains(p, name)
-			if !found {
-				continue
-			}
-		}
+	filteredConfigs := make(map[string]ProjectConfig, 0)
 
-		proj, err := buildProject(name, cfg, projects, map[string]bool{})
+	// if user defined projects via flag, only build those
+	if len(roots) > 0 {
+		for _, r := range roots {
+			conf, ok := config.Projects[r]
+			if !ok {
+				return nil, fmt.Errorf("project %q not found in config", r)
+			}
+			filteredConfigs[r] = conf
+		}
+	}
+
+	if len(filteredConfigs) == 0 {
+		filteredConfigs = config.Projects
+	}
+
+	for name := range filteredConfigs {
+		proj, err := buildProject(name, config, projects, map[string]bool{})
 		if err != nil {
 			return nil, err
 		}
@@ -107,35 +116,30 @@ func BuildProjects(cfg *Config, p []string) (map[string]Project, error) {
 	return projects, nil
 }
 
-func buildProject(name string, cfg *Config, built map[string]Project, visiting map[string]bool) (Project, error) {
+func buildProject(name string, config *Config, built map[string]Project, visiting map[string]bool) (Project, error) {
 	if proj, exists := built[name]; exists {
 		return proj, nil // already built
 	}
 
-	pc, ok := cfg.Projects[name]
-	if !ok {
-		return nil, fmt.Errorf("project %q not found in config", name)
-	}
-
-	if pc.Type == GoProjectType {
-		if visiting[name] {
-			return nil, fmt.Errorf("circular dependency detected on project %q", name)
-		}
+	if visiting[name] {
+		return nil, fmt.Errorf("circular dependency detected on project %q", name)
 	}
 	visiting[name] = true
 
+	cfg := config.Projects[name]
+
 	var p Project
-	switch pc.Type {
+	switch cfg.Type {
 	case GoProjectType:
-		p = NewGoProject(name, pc.Path)
+		p = NewGoProject(name, cfg.Path)
 	case NodeProjectType:
-		p = NewNodeProject(name, pc.Path)
+		p = NewNodeProject(name, cfg.Path)
 	default:
-		return nil, fmt.Errorf("unsupported project type %q", pc.Type)
+		return nil, fmt.Errorf("unsupported project type %q", cfg.Type)
 	}
 
-	for _, depName := range pc.DependsOn {
-		depProj, err := buildProject(string(depName), cfg, built, visiting)
+	for _, depName := range cfg.DependsOn {
+		depProj, err := buildProject(string(depName), config, built, visiting)
 		if err != nil {
 			return nil, err
 		}
