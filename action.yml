@@ -3,9 +3,18 @@ description: "Runs Monotrack CLI"
 author: Arno
 
 inputs:
+  command:
+    description: "The command to run. Defaults to 'compare'"
+    default: "compare"
+  base:
+    description: "The base SHA used to compare"
+    required: false
+  head:
+    description: "The HEAD SHA used to compare"
+    required: false
   args:
-    description: "Arguments to pass to Monotrack"
-    required: true
+    description: "Arguments to pass to the command"
+    required: false
   version:
     description: "CLI version to use"
     required: false
@@ -13,6 +22,10 @@ inputs:
   config:
     description: "Name of the configuration file"
     required: false
+outputs:
+  output:
+    value: ${{ steps.monotrack.outputs.output }}
+    description: "The CLI output (plain text, newlines escaped)"
 
 branding:
   icon: book-open
@@ -26,26 +39,70 @@ runs:
       run: |
         VERSION="${{ inputs.version }}"
         if [ "$VERSION" = "latest" ]; then
-          VERSION=$(curl -s https://api.github.com/repos/arnoldvann/monotrack/releases/latest | jq -r .tag_name)
+          if command -v jq >/dev/null 2>&1; then
+            VERSION=$(curl -s https://api.github.com/repos/arnoldvann/monotrack/releases/latest | jq -r .tag_name)
+          else
+            VERSION=$(curl -s https://api.github.com/repos/arnoldvann/monotrack/releases/latest \
+              | grep -m1 '"tag_name":' \
+              | sed -E 's/.*"([^"]+)".*/\1/')
+          fi
         fi
 
         OS=$(uname | tr '[:upper:]' '[:lower:]')
         ARCH=$(uname -m | sed 's/x86_64/amd64/')
 
+        BIN_NAME="monotrack"
+        INSTALL_DIR="$HOME/.local/bin"
+
+        mkdir -p "$INSTALL_DIR"
+
         curl -L \
           "https://github.com/arnoldvann/monotrack/releases/download/${VERSION}/monotrack_${OS}_${ARCH}" \
-          -o mycli
+          -o "$BIN_NAME"
 
-        chmod +x monotrack
-        sudo mv monotrack /usr/local/bin/monotrack
+        chmod +x "$BIN_NAME"
+        mv "$BIN_NAME" "$INSTALL_DIR/$BIN_NAME"
 
-    - name: Run monotrack
+        echo "$INSTALL_DIR" >> "$GITHUB_PATH"
+
+    - name: Determine commits
+      id: commits
       shell: bash
       run: |
-        CMD="monotrack"
+        BASE="${{ inputs.base }}"
+        HEAD="${{ inputs.head }}"
 
-        if [ -n "${{ inputs.config }}" ]; then
-          CMD="$CMD --config ${{ inputs.config }}"
+        # Fallback defaults
+        if [ -z "$HEAD" ]; then
+          HEAD="${GITHUB_SHA}"
         fi
 
-        $CMD ${{ inputs.args }}
+        if [ -z "$BASE" ]; then
+          if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            BASE=$(jq -r .before < "$GITHUB_EVENT_PATH")
+          elif [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            BASE=$(jq -r .pull_request.base.sha < "$GITHUB_EVENT_PATH")
+            if [ -z "$HEAD" ]; then
+              HEAD=$(jq -r .pull_request.head.sha < "$GITHUB_EVENT_PATH")
+            fi
+          fi
+        fi
+
+        echo "base=$BASE"
+        echo "head=$HEAD"
+        echo "base=$BASE" >> "$GITHUB_OUTPUT"
+        echo "head=$HEAD" >> "$GITHUB_OUTPUT"
+
+    - name: Run monotrack
+      id: monotrack
+      shell: bash
+      run: |
+        set -o errexit
+        ARGS=(${{ inputs.args }})
+        OUTPUT=$(monotrack ${{ inputs.command }} \
+          ${ARGS[@]} \
+          $([[ "${{ inputs.command }}" = "compare" ]] && echo "${{ steps.commits.outputs.base }} ${{ steps.commits.outputs.head }}") \
+          $([[ -n "${{ inputs.config }}" ]] && echo "--config ${{ inputs.config }}"))
+
+        SAFE_OUTPUT="${OUTPUT//$'\n'/\\n}"
+        echo "output=$SAFE_OUTPUT" >> "$GITHUB_OUTPUT"
