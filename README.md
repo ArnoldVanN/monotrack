@@ -19,7 +19,7 @@ and only running actions for projects that actually changed, without having to r
 
 ### Download binary
 ```bash
-curl -LO https://github.com/ArnoldVanN/monotrack/releases/download/v0.1.2/monotrack_Linux_x86_64.tar.gz
+curl -LO https://github.com/ArnoldVanN/monotrack/releases/download/v0.2.0/monotrack_Linux_x86_64.tar.gz
 tar -xzf monotrack_Linux_x86_64.tar.gz
 mv monotrack /usr/local/bin/
 ```
@@ -37,10 +37,10 @@ mv monotrack /usr/local/bin/
 ```yaml
 - name: Run Monotrack CLI
   id: monotrack
-  uses: arnoldvann/monotrack@v0.1.2
+  uses: arnoldvann/monotrack@v0.2.0
   with:
     args: ""                    # Optional
-    version: "v0.1.2"           # Optional, defaults to 'latest'
+    version: "v0.2.0"           # Optional, defaults to 'latest'
     command: "tag list"         # Optional, defaults to 'compare'
     # Optionally specify a base and head SHA (not used if command != "compare")
     base: ""
