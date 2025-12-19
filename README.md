@@ -1,4 +1,14 @@
-# Installation
+## Purpose
+While there already exist plenty of tools to help with code verisoning, support across languages, specifically for monorepos, may be considered insufficient.
+I built Monotrack because I needed a generic and simple solution to help with versioning in a monorepo. Especially for testing purposes.
+This project is currently in it's testing phase and has some limitations. For example having to manually specify a local/internal dependency tree.
+Though this is a limitation other versioning tools also observe.
+A solution I might implement is automatic generation of dependency trees.
+However this would of course require manually implementing the automation for each lanugage individually.
+For now, my main use cases are easily creating pre-release/development tags for development branches,
+and only running actions for projects that actually changed, without having to rely on a heavier tool like release-please or release-it.
+
+## Installation
 
 ### Build from source
 1. Clone the repository.
