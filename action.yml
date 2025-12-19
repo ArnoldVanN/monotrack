@@ -14,6 +14,10 @@ inputs:
     description: "Name of the configuration file"
     required: false
 
+branding:
+  icon: book-open
+  color: gray-dark
+
 runs:
   using: "composite"
   steps:
