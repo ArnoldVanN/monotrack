@@ -25,6 +25,7 @@ mv monotrack /usr/local/bin/
 ```
 
 # Usage
+> **_Warn:_** Currently, Monotrack requires pre-existing git tags to be available for certain commands and in the following format: `<project-name>/v<version>` Customizable separators and pre/suffixes will be available in the future.
 
 ## CLI
 1. Run `monotrack init` to create a template configuration (`monotrack.yaml`). The `.monotrack-manifest.yaml` is a work in progress.
@@ -88,10 +89,37 @@ projects:
 
 An update to a file in the `packages/another-shared` package will result in the following output:
 ```bash
-$ monotrack compare c4688b6a4aa2d3a50a0e1ec59c69d0eeacee36b6 428cb452e22252ebee05e6ee8209175f330b16aa
+$ monotrack compare 8a059ec 0f6a8d1
 another-shared
 shared-package
 backend
+```
+
+You can also output bumped versions for specified projects:
+```bash
+$ git tag --list
+frontend/v0.0.1
+api/v0.0.2
+shared-pkg/v0.0.1
+$ monotrack tag bump
+frontend/v0.0.2
+api/v0.0.3
+shared-pkg/v0.0.2
+```
+
+Though the default is `patch` and there is currently no way to set version components for specific projects, you can specify a version component:
+```bash
+$ monotrack tag bump --component minor
+frontend/v0.1.0
+api/v0.1.0
+shared-pkg/v0.1.0
+```
+The way to work around this is to specify `--projects` and run the `bump` command for each group of projects that can be bumped with the same version component.  
+
+Specify a base commit hash used to diff:
+```bash
+$ monotrack tag bump bf25f51 -c minor
+frontend/v0.1.0
 ```
 
 # TODO
@@ -99,3 +127,6 @@ backend
 - [ ] Keep track of versions/tags in the `.monotrack-manifest.yaml`  
 - [ ] Implement other helper commands  
 - [ ] Support different output formats for the root command (by name, by path, by tag, etc.)  
+- [ ] Automatically create git tags if none exist yet? Since tags are required for the VersionBumper to get the commit refs to base the diff on.  
+- [ ] Sort outputs alphabetically
+- [ ] Implement pre release logic for bump command

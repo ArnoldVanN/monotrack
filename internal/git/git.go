@@ -3,24 +3,31 @@ package git
 import (
 	"fmt"
 	"os/exec"
+	"slices"
 	"strings"
 
 	"github.com/arnoldvann/monotrack/internal/projects"
 )
 
-func GitDiff(base string, head string) (string, error) {
+func GitDiff(base string, head string) ([]string, error) {
 	path, err := GetRepoRoot()
 	if err != nil {
-		return "", fmt.Errorf("failed to get repo root: %w", err)
+		return nil, fmt.Errorf("failed to get repo root: %w", err)
 	}
 
 	cmd := exec.Command("git", "-C", path, "diff", base, head, "--name-only")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return string(out), fmt.Errorf("git diff failed: %w: %s", err, out)
+		return nil, fmt.Errorf("git diff failed: %w: %s", err, out)
 	}
 
-	return string(out), nil
+	if len(out) == 0 {
+		return nil, nil
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+
+	return lines, nil
 }
 
 func GetRepoRoot() (string, error) {
@@ -43,6 +50,14 @@ func GetTagsForProjects(p map[string]projects.Project) ([]string, error) {
 
 	filtered := filterTagsForProjects(allTags, p)
 
+	if len(filtered) < len(p) {
+		for _, p := range p {
+			if !slices.ContainsFunc(filtered, func(t string) bool { return strings.Contains(t, p.Name()) }) {
+				fmt.Printf("WARN: no tags found for project %q\n", p.Name())
+			}
+		}
+	}
+
 	return filtered, nil
 }
 
@@ -63,20 +78,18 @@ func GetHead() (string, error) {
 	cmd := exec.Command("git", "rev-parse", "HEAD")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return string(out), fmt.Errorf("git command failed: %w: %s", err, out)
+		return "", fmt.Errorf("git rev-parse failed: %w: %s", err, out)
 	}
 
-	return string(out), nil
+	return strings.TrimSpace(string(out)), nil
 }
 
-func GetBase() (string, error) {
-	cmd := exec.Command("git", "describe", "--tags", "--abbrev=0")
+func GetBase(tag string) (string, error) {
+	cmd := exec.Command("git", "rev-list", "-n", "1", tag)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return string(out), fmt.Errorf("git command failed: %w: %s", err, out)
+		return "", fmt.Errorf("git rev-list failed: %w: %s", err, out)
 	}
 
-	fmt.Printf(string(out))
-
-	return string(out), nil
+	return strings.TrimSpace(string(out)), nil
 }

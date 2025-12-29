@@ -2,10 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"strings"
 
-	"github.com/arnoldvann/monotrack/internal/app"
-	"github.com/arnoldvann/monotrack/internal/git"
+	"github.com/arnoldvann/monotrack/internal/versioning"
 	"github.com/spf13/cobra"
 )
 
@@ -22,63 +20,15 @@ var (
 			base := args[0]
 			head := args[1]
 
-			diff, err := git.GitDiff(base, head)
+			changes, err := versioning.ListChangedProjectsBetweenCommits(base, head)
 			if err != nil {
 				return err
 			}
 
-			lines := strings.Split(strings.TrimSpace(diff), "\n")
-			if len(lines) == 0 {
-				fmt.Println("No changes detected")
-				return nil
-			}
-
-			// set of parent project names
-			reverseDeps := make(map[string]map[string]struct{})
-
-			for _, p := range app.State.Projects {
-				for _, d := range p.ListDependencies() {
-					if reverseDeps[d.Name()] == nil {
-						reverseDeps[d.Name()] = make(map[string]struct{})
-					}
-					reverseDeps[d.Name()][p.Name()] = struct{}{}
-				}
-			}
-
-			changedMap := make(map[string]struct{})
-
-			for _, p := range app.State.Projects {
-				for _, l := range lines {
-					if strings.Contains(l, p.Path()) {
-						changedMap[p.Name()] = struct{}{}
-						collectParents(p.Name(), reverseDeps, changedMap)
-					}
-				}
-			}
-
-			changed := make([]string, 0, len(changedMap))
-			for k := range changedMap {
-				changed = append(changed, k)
-			}
-
-			for _, c := range changed {
+			for _, c := range changes {
 				fmt.Printf("%v\n", c)
 			}
 			return nil
 		},
 	}
 )
-
-func collectParents(
-	start string,
-	reverse map[string]map[string]struct{},
-	out map[string]struct{},
-) {
-	for parent := range reverse[start] {
-		if _, seen := out[parent]; seen {
-			continue
-		}
-		out[parent] = struct{}{}
-		collectParents(parent, reverse, out)
-	}
-}

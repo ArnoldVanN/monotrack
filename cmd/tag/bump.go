@@ -22,18 +22,25 @@ var (
 	out        string
 
 	bumpCmd = &cobra.Command{
-		TraverseChildren: true,
-		Use:              "bump",
-		Short:            "returns the versions for the specified apps/packages, bumped by 'component'",
+		Use:   "bump",
+		Short: "Returns the bumped versions for the specified apps/packages if they changed, bumped by 'component'",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			bumper := versioning.NewBumper()
-
-			kind, err := ParseBumpKind(component)
-			if err != nil {
-				return fmt.Errorf("invalid component")
+			var base string
+			if len(args) == 1 {
+				base = args[0]
+			} else {
+				base = "" // will be handleled in VersionBumper
 			}
 
-			bumped, err := bumper.BumpProjects(app.State.Projects, kind, preRelease)
+			bumper := versioning.NewBumper()
+
+			kind, err := parseBumpKind(component)
+			if err != nil {
+				return err
+			}
+
+			bumped, err := bumper.BumpProjects(app.State.Projects, kind, preRelease, base)
 			if err != nil {
 				return err
 			}
@@ -47,7 +54,7 @@ var (
 	}
 )
 
-func ParseBumpKind(s string) (versioning.BumpKind, error) {
+func parseBumpKind(s string) (versioning.BumpKind, error) {
 	switch versioning.BumpKind(s) {
 	case versioning.MajorBump, versioning.MinorBump, versioning.PatchBump:
 		return versioning.BumpKind(s), nil
