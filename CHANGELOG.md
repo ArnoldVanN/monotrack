@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/ArnoldVanN/monotrack/compare/v0.2.0...v0.2.1) (2025-12-29)
+
+
+### Features
+
+* allow specifying a base hash in tag bump command ([9c8284b](https://github.com/ArnoldVanN/monotrack/commit/9c8284b15ed3bded2b352a2ba39a21b6439f68e9))
+
 ## [0.2.0](https://github.com/ArnoldVanN/monotrack/compare/v0.1.2...v0.2.0) (2025-12-19)
 
 
