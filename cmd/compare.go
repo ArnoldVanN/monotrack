@@ -68,3 +68,17 @@ var (
 		},
 	}
 )
+
+func collectParents(
+	start string,
+	reverse map[string]map[string]struct{},
+	out map[string]struct{},
+) {
+	for parent := range reverse[start] {
+		if _, seen := out[parent]; seen {
+			continue
+		}
+		out[parent] = struct{}{}
+		collectParents(parent, reverse, out)
+	}
+}

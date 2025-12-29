@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/arnoldvann/monotrack/cmd/bump"
 	"github.com/arnoldvann/monotrack/cmd/tag"
 	"github.com/arnoldvann/monotrack/config"
 	"github.com/arnoldvann/monotrack/internal/app"
@@ -56,20 +55,6 @@ var (
 	}
 )
 
-func collectParents(
-	start string,
-	reverse map[string]map[string]struct{},
-	out map[string]struct{},
-) {
-	for parent := range reverse[start] {
-		if _, seen := out[parent]; seen {
-			continue
-		}
-		out[parent] = struct{}{}
-		collectParents(parent, reverse, out)
-	}
-}
-
 func EnsureRepoRoot() error {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -100,5 +85,4 @@ func init() {
 	rootCmd.PersistentFlags().StringSliceVar(&projects, "projects", make([]string, 0), "projects to include in operation")
 
 	rootCmd.AddCommand(tag.TagCmd)
-	rootCmd.AddCommand(bump.BumpCmd)
 }

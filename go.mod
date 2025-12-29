@@ -5,6 +5,7 @@ go 1.25.4
 require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
+	golang.org/x/mod v0.26.0
 )
 
 require (

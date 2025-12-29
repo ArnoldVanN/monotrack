@@ -16,13 +16,6 @@ type ProjectConfig struct {
 	DependsOn  []string    `mapstructure:"dependsOn"`
 }
 
-type BumpKind string
-
-const (
-	SemVerBumpKind     BumpKind = "semver"
-	PreReleaseBumpKind BumpKind = "pr"
-)
-
 type projectType string
 
 const (
@@ -45,10 +38,7 @@ func (t projectType) isValid() bool {
 type Project interface {
 	Name() string
 	Path() string
-	GetVersion() (string, error)
 	GetType() projectType
-	GetTags() ([]string, error)
-	Bump(kind BumpKind) error
 	AddDependency(Project)
 	ListDependencies() []Project
 }
