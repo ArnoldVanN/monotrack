@@ -4,8 +4,8 @@ author: Arno
 
 inputs:
   command:
-    description: "The command to run. Defaults to 'compare'"
-    default: "compare"
+    description: "The command to run. Defaults to 'tag bump'"
+    default: "tag bump"
   base:
     description: "The base SHA used to compare"
     required: false
@@ -88,8 +88,6 @@ runs:
           fi
         fi
 
-        echo "base=$BASE"
-        echo "head=$HEAD"
         echo "base=$BASE" >> "$GITHUB_OUTPUT"
         echo "head=$HEAD" >> "$GITHUB_OUTPUT"
 
