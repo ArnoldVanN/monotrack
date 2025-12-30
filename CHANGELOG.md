@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.0](https://github.com/ArnoldVanN/monotrack/compare/v0.2.1...v0.3.0) (2025-12-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* change default Action command input to `tag bump`
+* output default tag for a project if none exist instead of warning
+* return projects paths from compare instead of names
+
+### Features
+
+* change default Action command input to `tag bump` ([6f1eea9](https://github.com/ArnoldVanN/monotrack/commit/6f1eea9ca6710f948f89182ea8517a43da7721f3))
+
+
+### Bug Fixes
+
+* output default tag for a project if none exist instead of warning ([10792a2](https://github.com/ArnoldVanN/monotrack/commit/10792a2edbec7c38615cc9fab2215cfa1009c359))
+* return projects paths from compare instead of names ([0866177](https://github.com/ArnoldVanN/monotrack/commit/08661773c90762aaa2bb6756b8d703453e056a7a))
+
 ## [0.2.1](https://github.com/ArnoldVanN/monotrack/compare/v0.2.0...v0.2.1) (2025-12-29)
 
 
