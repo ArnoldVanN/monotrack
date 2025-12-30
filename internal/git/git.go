@@ -53,7 +53,7 @@ func GetTagsForProjects(p map[string]projects.Project) ([]string, error) {
 	if len(filtered) < len(p) {
 		for _, p := range p {
 			if !slices.ContainsFunc(filtered, func(t string) bool { return strings.Contains(t, p.Name()) }) {
-				fmt.Printf("WARN: no tags found for project %q\n", p.Name())
+				filtered = append(filtered, p.Name()+"/v0.0.0") // TODO: replace with customizeable separator and prefix
 			}
 		}
 	}
