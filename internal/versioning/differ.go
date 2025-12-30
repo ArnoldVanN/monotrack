@@ -7,7 +7,7 @@ import (
 	"github.com/arnoldvann/monotrack/internal/git"
 )
 
-func ListChangedProjectsBetweenCommits(base string, head string) ([]string, error) {
+func ListChangedProjectNamesBetweenCommits(base string, head string) ([]string, error) {
 	diff, err := git.GitDiff(base, head)
 	if err != nil {
 		return nil, err

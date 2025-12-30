@@ -108,7 +108,7 @@ func getChangedProjectsToVersions(p map[string]string, base string) (map[string]
 	changedProjects := make(map[string]string, 0)
 
 	for _, c := range baseCommits {
-		changed, err := ListChangedProjectsBetweenCommits(c, head)
+		changed, err := ListChangedProjectNamesBetweenCommits(c, head)
 		if err != nil {
 			return nil, err
 		}

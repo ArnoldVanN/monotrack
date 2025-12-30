@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/arnoldvann/monotrack/internal/app"
 	"github.com/arnoldvann/monotrack/internal/versioning"
 	"github.com/spf13/cobra"
 )
@@ -20,13 +21,14 @@ var (
 			base := args[0]
 			head := args[1]
 
-			changes, err := versioning.ListChangedProjectsBetweenCommits(base, head)
+			changes, err := versioning.ListChangedProjectNamesBetweenCommits(base, head)
 			if err != nil {
 				return err
 			}
 
 			for _, c := range changes {
-				fmt.Printf("%v\n", c)
+				proj := app.State.Projects[c]
+				fmt.Printf("%v\n", proj.Path())
 			}
 			return nil
 		},
