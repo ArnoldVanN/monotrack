@@ -14,20 +14,25 @@ type ProjectConfig struct {
 	Path       string      `mapstructure:"path"`
 	Versioning string      `mapstructure:"versioning"`
 	DependsOn  []string    `mapstructure:"dependsOn"`
+	Build      BuildConfig `mapstructure:"build"`
+}
+
+type BuildConfig struct {
+	Entrypoint bool `mapstructure:"entrypoint"`
 }
 
 type projectType string
 
 const (
-	NodeProjectType projectType = "node"
-	GoProjectType   projectType = "go"
-	HelmProjectType projectType = "helm"
+	ProjectTypeNode projectType = "node"
+	ProjectTypeGo   projectType = "go"
+	ProjectTypeHelm projectType = "helm"
 )
 
 var validProjectTypes = map[projectType]struct{}{
-	NodeProjectType: {},
-	GoProjectType:   {},
-	HelmProjectType: {},
+	ProjectTypeNode: {},
+	ProjectTypeGo:   {},
+	ProjectTypeHelm: {},
 }
 
 func (t projectType) isValid() bool {
@@ -41,6 +46,7 @@ type Project interface {
 	GetType() projectType
 	AddDependency(Project)
 	ListDependencies() []Project
+	IsEntrypoint() bool
 }
 
 func (c *Config) Validate() error {
@@ -67,6 +73,18 @@ func (c *Config) Validate() error {
 					"project %q depends on unknown project %q",
 					name,
 					dep,
+				)
+			}
+		}
+
+		if pc.Build.Entrypoint {
+			switch pc.Type {
+			case ProjectTypeNode, ProjectTypeGo:
+				// ok
+			default:
+				return fmt.Errorf(
+					"project %q: build.entrypoint is not allowed for project type %q",
+					name, pc.Type,
 				)
 			}
 		}
@@ -120,10 +138,10 @@ func buildProject(name string, config *Config, built map[string]Project, visitin
 
 	var p Project
 	switch cfg.Type {
-	case GoProjectType:
-		p = NewGoProject(name, cfg.Path)
-	case NodeProjectType:
-		p = NewNodeProject(name, cfg.Path)
+	case ProjectTypeGo:
+		p = NewGoProject(name, cfg.Path, cfg.Build.Entrypoint)
+	case ProjectTypeNode:
+		p = NewNodeProject(name, cfg.Path, cfg.Build.Entrypoint)
 	default:
 		return nil, fmt.Errorf("unsupported project type %q", cfg.Type)
 	}

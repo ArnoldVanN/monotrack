@@ -6,8 +6,8 @@ import (
 	"os"
 
 	"github.com/arnoldvann/monotrack/cmd/tag"
-	"github.com/arnoldvann/monotrack/config"
 	"github.com/arnoldvann/monotrack/internal/app"
+	"github.com/arnoldvann/monotrack/internal/config"
 	"github.com/arnoldvann/monotrack/internal/git"
 	proj "github.com/arnoldvann/monotrack/internal/projects"
 	"github.com/spf13/cobra"

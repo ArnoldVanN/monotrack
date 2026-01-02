@@ -15,6 +15,7 @@ func init() {
 	bumpCmd.Flags().StringVarP(&tag, "tag", "t", "", "manually specify a tag")
 	bumpCmd.Flags().StringVarP(&component, "component", "c", "patch", "the version component to bump (major, minor, patch)")
 	bumpCmd.Flags().StringVarP(&out, "out", "o", "plain", "output format (plain, json)")
+	bumpCmd.Flags().BoolVarP(&entrypointsOnly, "entrypoints-only", "e", false, "whether to only output applications considered as entrypoints")
 }
 
 type Output struct {
@@ -24,10 +25,11 @@ type Output struct {
 }
 
 var (
-	preRelease bool
-	tag        string
-	component  string
-	out        string
+	preRelease      bool
+	tag             string
+	component       string
+	out             string
+	entrypointsOnly bool
 
 	bumpCmd = &cobra.Command{
 		Use:   "bump",
@@ -51,6 +53,14 @@ var (
 			bumped, err := bumper.BumpProjects(app.State.Projects, kind, preRelease, base)
 			if err != nil {
 				return err
+			}
+
+			if entrypointsOnly {
+				for p := range bumped {
+					if !p.IsEntrypoint() {
+						delete(bumped, p)
+					}
+				}
 			}
 
 			if out == "json" {

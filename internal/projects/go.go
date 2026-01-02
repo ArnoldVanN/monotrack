@@ -5,12 +5,14 @@ type GoProject struct {
 	path         string
 	typeName     projectType
 	dependencies []Project
+	entrypoint   bool
 }
 
-func NewGoProject(name, path string) Project {
+func NewGoProject(name, path string, entry bool) Project {
 	return &GoProject{
-		name: name,
-		path: path,
+		name:       name,
+		path:       path,
+		entrypoint: entry,
 	}
 }
 
@@ -32,4 +34,8 @@ func (p *GoProject) AddDependency(proj Project) {
 
 func (p *GoProject) ListDependencies() []Project {
 	return p.dependencies
+}
+
+func (p *GoProject) IsEntrypoint() bool {
+	return p.entrypoint
 }
