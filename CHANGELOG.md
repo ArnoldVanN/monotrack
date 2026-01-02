@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/ArnoldVanN/monotrack/compare/v0.3.1...v0.3.2) (2026-01-02)
+
+
+### Bug Fixes
+
+* issue with parsing pre-release tags ([9e70efe](https://github.com/ArnoldVanN/monotrack/commit/9e70efe3c9f7263f003b71701f164c744f3f1995))
+
 ## [0.3.1](https://github.com/ArnoldVanN/monotrack/compare/v0.3.0...v0.3.1) (2026-01-02)
 
 
