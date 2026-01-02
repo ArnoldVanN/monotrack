@@ -33,11 +33,15 @@ projects:
   frontend:
     type: node
     path: apps/frontend
+    build:
+      entrypoint: true # Optionally specify entrypoints in order to use `-e`. Useful in CI when only needing to build entrypoint projects while testing all of them
   backend:
     type: go
     path: apps/backend
     dependsOn:
       - shared-package
+    build:
+      entrypoint: true
   shared-package:
     type: go
     path: packages/shared
@@ -46,6 +50,14 @@ projects:
   another-shared:
     type: go
     path: packages/another-shared
+```
+
+An update to a file in the `packages/another-shared` package will result in the following output:
+```bash
+$ monotrack compare 8a059ec 0f6a8d1
+another-shared
+shared-package
+backend
 ```
 
 ## Action
@@ -89,13 +101,6 @@ projects:
 > Other commands might be available in the CLI but are not yet implemented.  
 
 ### Examples
-An update to a file in the `packages/another-shared` package will result in the following output:
-```bash
-$ monotrack compare 8a059ec 0f6a8d1
-another-shared
-shared-package
-backend
-```
 
 #### You can also output bumped versions for specified projects:
 ```bash
@@ -125,6 +130,18 @@ The way to work around this is to specify `--projects` and run the `bump` comman
 ```bash
 $ monotrack tag bump bf25f51 -c minor
 frontend/v0.1.0
+```
+
+#### Output as json (Only on `bump` currently)
+```bash
+$ monotrack tag bump 8a059ec --projects api -o json
+[{"name":"api","path":"apps/api","version":"v0.0.3"},{"name":"go-shared","path":"packages/go-shared","version":"v0.0.2"}]
+```
+
+#### Only list entrypoints (Only on `bump` currently)
+```bash
+$ monotrack tag bump 8a059ec --projects api -o json -e
+[{"name":"api","path":"apps/api","version":"v0.0.3"}]
 ```
 
 # TODO
