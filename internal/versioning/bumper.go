@@ -27,12 +27,12 @@ func NewBumper() VersionBumper {
 }
 
 func (b *VersionBumper) BumpProjects(
-	projects map[string]projects.Project,
+	p map[string]projects.Project,
 	kind BumpKind,
 	preRelease bool,
 	base string,
-) (map[string]string, error) {
-	allTags, err := git.GetTagsForProjects(projects)
+) (map[projects.Project]string, error) {
+	allTags, err := git.GetTagsForProjects(p)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,16 @@ func (b *VersionBumper) BumpProjects(
 		appendPrSuffix(bumped)
 	}
 
-	return bumped, nil
+	projectVersions := make(map[projects.Project]string, len(bumped))
+	for name, version := range bumped {
+		p, ok := app.State.Projects[name]
+		if !ok {
+			return nil, fmt.Errorf("project %q not found in app state", name)
+		}
+		projectVersions[p] = version
+	}
+
+	return projectVersions, nil
 }
 
 func bump(s map[string]string, kind BumpKind) (map[string]string, error) {

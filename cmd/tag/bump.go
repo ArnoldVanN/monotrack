@@ -1,7 +1,9 @@
 package tag
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/arnoldvann/monotrack/internal/app"
 	"github.com/arnoldvann/monotrack/internal/versioning"
@@ -13,6 +15,12 @@ func init() {
 	bumpCmd.Flags().StringVarP(&tag, "tag", "t", "", "manually specify a tag")
 	bumpCmd.Flags().StringVarP(&component, "component", "c", "patch", "the version component to bump (major, minor, patch)")
 	bumpCmd.Flags().StringVarP(&out, "out", "o", "plain", "output format (plain, json)")
+}
+
+type Output struct {
+	Name    string `json:"name"`
+	Path    string `json:"path"`
+	Version string `json:"version"`
 }
 
 var (
@@ -45,8 +53,27 @@ var (
 				return err
 			}
 
-			for p, v := range bumped {
-				fmt.Println(p + "/" + v)
+			if out == "json" {
+				o := make([]Output, 0, len(bumped))
+
+				for p, v := range bumped {
+					o = append(o, Output{
+						Name:    p.Name(),
+						Path:    p.Path(),
+						Version: v,
+					})
+				}
+
+				b, err := json.Marshal(o)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				fmt.Println(string(b))
+			} else {
+				for p, v := range bumped {
+					fmt.Println(p.Name() + "/" + v)
+				}
 			}
 
 			return nil
