@@ -54,7 +54,7 @@ projects:
 
 An update to a file in the `packages/another-shared` package will result in the following output:
 ```bash
-$ monotrack compare 8a059ec 0f6a8d1
+monotrack compare 8a059ec 0f6a8d1
 another-shared
 shared-package
 backend
@@ -102,13 +102,13 @@ backend
 
 ### Examples
 
-#### You can also output bumped versions for specified projects:
+#### Output bumped versions for specified projects:
 ```bash
-$ git tag --list
+git tag --list
 frontend/v0.0.1
 api/v0.0.2
 shared-pkg/v0.0.1
-$ monotrack tag bump
+monotrack tag bump
 frontend/v0.0.2
 api/v0.0.3
 shared-pkg/v0.0.2
@@ -119,7 +119,7 @@ shared-pkg/v0.0.2
 
 Though the default is `patch` and there is currently no way to set version components for specific projects, you can specify a version component:
 ```bash
-$ monotrack tag bump --component minor
+monotrack tag bump --component minor
 frontend/v0.1.0
 api/v0.1.0
 shared-pkg/v0.1.0
@@ -128,20 +128,26 @@ The way to work around this is to specify `--projects` and run the `bump` comman
 
 #### Specify a base commit hash used to diff:
 ```bash
-$ monotrack tag bump bf25f51 -c minor
+monotrack tag bump bf25f51 -c minor
 frontend/v0.1.0
 ```
 
 #### Output as json (Only on `bump` currently)
 ```bash
-$ monotrack tag bump 8a059ec --projects api -o json
+monotrack tag bump 8a059ec --projects api -o json
 [{"name":"api","path":"apps/api","version":"v0.0.3"},{"name":"go-shared","path":"packages/go-shared","version":"v0.0.2"}]
 ```
 
 #### Only list entrypoints (Only on `bump` currently)
 ```bash
-$ monotrack tag bump 8a059ec --projects api -o json -e
+monotrack tag bump 8a059ec --projects api -o json -e
 [{"name":"api","path":"apps/api","version":"v0.0.3"}]
+```
+
+#### Use prereleases
+```bash
+monotrack tag bump 8a059ec --projects api -pe -o json -c minor
+[{"name":"api","path":"apps/api","version":"v0.1.0-rc"}]
 ```
 
 # TODO

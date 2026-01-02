@@ -24,7 +24,9 @@ var (
 			}
 
 			for _, o := range tags {
-				fmt.Println(o)
+				for _, t := range o {
+					fmt.Println(t)
+				}
 			}
 			return nil
 		},

@@ -51,13 +51,9 @@ func (b *VersionBumper) BumpProjects(
 		return nil, nil
 	}
 
-	bumped, err := bump(changedProjects, kind)
+	bumped, err := bump(changedProjects, kind, preRelease)
 	if err != nil {
 		return nil, err
-	}
-
-	if preRelease {
-		appendPrSuffix(bumped)
 	}
 
 	projectVersions := make(map[projects.Project]string, len(bumped))
@@ -72,11 +68,11 @@ func (b *VersionBumper) BumpProjects(
 	return projectVersions, nil
 }
 
-func bump(s map[string]string, kind BumpKind) (map[string]string, error) {
+func bump(s map[string]string, kind BumpKind, preRelease bool) (map[string]string, error) {
 	out := make(map[string]string, len(s))
 
 	for p, v := range s {
-		ver, err := bumpVersion(v, kind)
+		ver, err := bumpVersion(v, kind, preRelease)
 		if err != nil {
 			return nil, err
 		}
@@ -141,46 +137,53 @@ func getChangedProjectsToVersions(p map[string]string, base string) (map[string]
 	return changedProjects, nil
 }
 
-func getLatestTagPerProject(tags []string) (map[string]string, error) {
-	latestPerProject := make(map[string]string, len(tags))
+func getLatestTagPerProject(pToT map[projects.Project][]string) (map[string]string, error) {
+	latestPerProject := make(map[string]string, len(pToT))
 
-	for _, i := range tags {
-		splitTag := strings.Split(i, "/")
-		project := splitTag[len(splitTag)-2]
-		version := splitTag[len(splitTag)-1]
+	for p, tags := range pToT {
+		for _, t := range tags {
+			splitTag := strings.Split(t, "/")
+			// project := splitTag[len(splitTag)-2]
+			version := splitTag[len(splitTag)-1]
 
-		proj, ok := app.State.Projects[project]
-		if !ok {
-			return nil, fmt.Errorf("project name parsed from tag doesn't match project specified in config: %q", project)
-		}
+			if !semver.IsValid(version) {
+				return nil, fmt.Errorf("invalid semver: %q", version)
+			}
 
-		if !semver.IsValid(version) {
-			return nil, fmt.Errorf("invalid semver: %q", version)
-		}
-
-		if semver.Compare(version, latestPerProject[proj.Name()]) > 0 {
-			latestPerProject[proj.Name()] = version
+			currentLatest, exists := latestPerProject[p.Name()]
+			if !exists || semver.Compare(version, currentLatest) > 0 {
+				latestPerProject[p.Name()] = version
+			}
 		}
 	}
 
 	return latestPerProject, nil
 }
 
-func bumpVersion(version string, kind BumpKind) (string, error) {
+func bumpVersion(version string, kind BumpKind, preRelease bool) (string, error) {
 	if !semver.IsValid(version) {
 		return "", fmt.Errorf("invalid semver: %q", version)
 	}
 
-	// Remove the leading "v"
+	// Remove leading "v"
 	v := strings.TrimPrefix(version, "v")
-	parts := strings.Split(v, ".")
-	if len(parts) != 3 {
+
+	// Separate prerelease suffix
+	parts := strings.SplitN(v, "-", 2)
+	core := parts[0]
+	pre := ""
+	if len(parts) == 2 {
+		pre = parts[1]
+	}
+
+	nums := strings.Split(core, ".")
+	if len(nums) != 3 {
 		return "", fmt.Errorf("expected 3 version components")
 	}
 
-	major, _ := strconv.Atoi(parts[0])
-	minor, _ := strconv.Atoi(parts[1])
-	patch, _ := strconv.Atoi(parts[2])
+	major, _ := strconv.Atoi(nums[0])
+	minor, _ := strconv.Atoi(nums[1])
+	patch, _ := strconv.Atoi(nums[2])
 
 	switch kind {
 	case MajorBump:
@@ -196,13 +199,12 @@ func bumpVersion(version string, kind BumpKind) (string, error) {
 		return "", fmt.Errorf("unknown component: %s", kind)
 	}
 
-	return fmt.Sprintf("v%d.%d.%d", major, minor, patch), nil
-}
-
-// TODO: custom suffixes
-func appendPrSuffix(s map[string]string) {
-	for p, v := range s {
-		tag := v + "-rc"
-		s[p] = tag
+	// TODO: custom suffixes
+	// Reattach prerelease or custom suffix if present
+	newVersion := fmt.Sprintf("v%d.%d.%d", major, minor, patch)
+	if preRelease {
+		newVersion = newVersion + "-" + pre
 	}
+
+	return newVersion, nil
 }

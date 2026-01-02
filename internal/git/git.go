@@ -3,7 +3,6 @@ package git
 import (
 	"fmt"
 	"os/exec"
-	"slices"
 	"strings"
 
 	"github.com/arnoldvann/monotrack/internal/projects"
@@ -39,7 +38,7 @@ func GetRepoRoot() (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-func GetTagsForProjects(p map[string]projects.Project) ([]string, error) {
+func GetTagsForProjects(p map[string]projects.Project) (map[projects.Project][]string, error) {
 	cmd := exec.Command("git", "tag", "--list")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -50,23 +49,21 @@ func GetTagsForProjects(p map[string]projects.Project) ([]string, error) {
 
 	filtered := filterTagsForProjects(allTags, p)
 
-	if len(filtered) < len(p) {
-		for _, p := range p {
-			if !slices.ContainsFunc(filtered, func(t string) bool { return strings.Contains(t, p.Name()) }) {
-				filtered = append(filtered, p.Name()+"/v0.0.0") // TODO: replace with customizeable separator and prefix
-			}
+	for p, tags := range filtered {
+		if len(tags) == 0 {
+			filtered[p] = append(filtered[p], p.Name()+"/v0.0.0")
 		}
 	}
 
 	return filtered, nil
 }
 
-func filterTagsForProjects(tags []string, projects map[string]projects.Project) []string {
-	filteredTags := make([]string, 0)
-	for _, p := range projects {
+func filterTagsForProjects(tags []string, proj map[string]projects.Project) map[projects.Project][]string {
+	filteredTags := make(map[projects.Project][]string, 0)
+	for _, p := range proj {
 		for _, t := range tags {
 			if strings.Contains(t, p.Name()) {
-				filteredTags = append(filteredTags, t)
+				filteredTags[p] = append(filteredTags[p], t)
 			}
 		}
 	}
