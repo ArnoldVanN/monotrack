@@ -25,7 +25,7 @@ var (
 	rootCmd = &cobra.Command{
 		Short: "A tool for versioning applications and packages in a monorepo",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if cmd.Name() == "init" {
+			if cmd.Name() == "init" || cmd.Name() == "version" {
 				return nil // skip
 			}
 
