@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.1](https://github.com/ArnoldVanN/monotrack/compare/v0.3.0...v0.3.1) (2026-01-02)
+
+
+### Features
+
+* added `entrypoints-only` flag to bump cmd ([254a5bb](https://github.com/ArnoldVanN/monotrack/commit/254a5bb4e3e78cca3173d37faaa241030a8a26bd))
+* added json output through flag to bump cmd ([beab19f](https://github.com/ArnoldVanN/monotrack/commit/beab19f0cf687351b486b79acad9f3cb2d785420))
+
+
+### Bug Fixes
+
+* version cmd doesn't need to be ran inside a git repo ([4d4688c](https://github.com/ArnoldVanN/monotrack/commit/4d4688c2f33a465e8ec734c129d585ea4b9f9903))
+
 ## [0.3.0](https://github.com/ArnoldVanN/monotrack/compare/v0.2.1...v0.3.0) (2025-12-30)
 
 
