@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.5](https://github.com/ArnoldVanN/monotrack/compare/v0.3.4...v0.3.5) (2026-01-05)
+
+
+### Bug Fixes
+
+* incompatible glibc version in action docker image ([e5f60fb](https://github.com/ArnoldVanN/monotrack/commit/e5f60fb1a55a4790da5f9ac72cbc64145b2e8712))
+
 ## [0.3.4](https://github.com/ArnoldVanN/monotrack/compare/v0.3.3...v0.3.4) (2026-01-05)
 
 
