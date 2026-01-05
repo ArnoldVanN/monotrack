@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.4](https://github.com/ArnoldVanN/monotrack/compare/v0.4.3...v0.4.4) (2026-01-05)
+
+
+### Features
+
+* add latest tag ([6d309b3](https://github.com/ArnoldVanN/monotrack/commit/6d309b33b478aa564f580d09f376cf0410301c96))
+
 ## [0.4.3](https://github.com/ArnoldVanN/monotrack/compare/v0.4.2...v0.4.3) (2026-01-05)
 
 
