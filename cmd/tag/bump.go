@@ -12,7 +12,6 @@ import (
 
 func init() {
 	bumpCmd.Flags().BoolVarP(&preRelease, "pre-release", "p", false, "use a pre-relelease version")
-	bumpCmd.Flags().StringVarP(&tag, "tag", "t", "", "manually specify a tag")
 	bumpCmd.Flags().StringVarP(&component, "component", "c", "patch", "the version component to bump (major, minor, patch)")
 	bumpCmd.Flags().StringVarP(&out, "out", "o", "plain", "output format (plain, json)")
 	bumpCmd.Flags().BoolVarP(&entrypointsOnly, "entrypoints-only", "e", false, "whether to only output applications considered as entrypoints")
@@ -26,7 +25,6 @@ type Output struct {
 
 var (
 	preRelease      bool
-	tag             string
 	component       string
 	out             string
 	entrypointsOnly bool
@@ -34,14 +32,9 @@ var (
 	bumpCmd = &cobra.Command{
 		Use:   "bump",
 		Short: "Returns the bumped versions for the specified apps/packages if they changed, bumped by 'component'",
-		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var base string
-			if len(args) == 1 {
-				base = args[0]
-			} else {
-				base = "" // will be handleled in VersionBumper
-			}
+			base := cmd.InheritedFlags().Lookup("base")
+			head := cmd.InheritedFlags().Lookup("head")
 
 			bumper := versioning.NewBumper()
 
@@ -50,7 +43,7 @@ var (
 				return err
 			}
 
-			bumped, err := bumper.BumpProjects(app.State.Projects, kind, preRelease, base)
+			bumped, err := bumper.BumpProjects(app.State.Projects, kind, preRelease, base.Value.String(), head.Value.String())
 			if err != nil {
 				return err
 			}

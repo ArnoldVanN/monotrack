@@ -22,6 +22,9 @@ var (
 	manifest string
 	projects []string
 
+	base string
+	head string
+
 	rootCmd = &cobra.Command{
 		Short: "A tool for versioning applications and packages in a monorepo",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -83,6 +86,9 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "f", "monotrack.yaml", "config file")
 	rootCmd.PersistentFlags().StringVarP(&manifest, "manifest", "m", ".monotrack-manifest.yaml", "manifest containing projects/tags")
 	rootCmd.PersistentFlags().StringSliceVar(&projects, "projects", make([]string, 0), "projects to include in operation")
+
+	rootCmd.PersistentFlags().StringVar(&base, "base", "", "base commit SHA")
+	rootCmd.PersistentFlags().StringVar(&head, "head", "", "head commit SHA")
 
 	rootCmd.AddCommand(tag.TagCmd)
 }

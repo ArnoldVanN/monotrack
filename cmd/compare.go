@@ -16,12 +16,11 @@ var (
 	compareCmd = &cobra.Command{
 		Use:   "compare",
 		Short: "List which projects changed between commits",
-		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			base := args[0]
-			head := args[1]
+			base := cmd.InheritedFlags().Lookup("base")
+			head := cmd.InheritedFlags().Lookup("head")
 
-			changes, err := versioning.ListChangedProjectNamesBetweenCommits(base, head)
+			changes, err := versioning.ListChangedProjectNamesBetweenCommits(base.Value.String(), head.Value.String())
 			if err != nil {
 				return err
 			}
