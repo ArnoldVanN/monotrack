@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/ArnoldVanN/monotrack/compare/v0.3.2...v0.3.3) (2026-01-05)
+
+
+### Features
+
+* global `head` and `base` flags for simplicity ([5f0a00e](https://github.com/ArnoldVanN/monotrack/commit/5f0a00e329eb0f046bdc69cd55a6116dc3ff4b3d))
+
 ## [0.3.2](https://github.com/ArnoldVanN/monotrack/compare/v0.3.1...v0.3.2) (2026-01-02)
 
 
