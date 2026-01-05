@@ -18,6 +18,10 @@ inputs:
   config:
     description: "Name of the configuration file"
     required: false
+  version:
+    description: "CLI version. Defaults to latest"
+    default: latest
+    required: false
 
 outputs:
   output:
@@ -29,7 +33,7 @@ branding:
 
 runs:
   using: "docker"
-  image: "Dockerfile"
+  image: "ghcr.io/arnoldvann/monotrack:${{ inputs.version }}"
   args:
     - ${{ inputs.command }}
     - ${{ inputs.base }}

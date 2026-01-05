@@ -84,6 +84,10 @@ apps/frontend
 
 **Optional** Name of the configuration file
 
+### `verison`
+
+**Optional** CLI version. Defaults to latest
+
 ## Outputs
 
 ### `output`
