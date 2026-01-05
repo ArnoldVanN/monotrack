@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/ArnoldVanN/monotrack/compare/v0.3.3...v0.3.4) (2026-01-05)
+
+
+### Bug Fixes
+
+* typo in golang image tag ([dfb010d](https://github.com/ArnoldVanN/monotrack/commit/dfb010df041c31257474c40795045cf64fa3fbe8))
+
 ## [0.3.3](https://github.com/ArnoldVanN/monotrack/compare/v0.3.2...v0.3.3) (2026-01-05)
 
 
