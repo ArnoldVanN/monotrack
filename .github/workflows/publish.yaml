@@ -47,7 +47,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/arnoldvann/monotrack/${{ github.ref_name }}
+          images: ghcr.io/arnoldvann/monotrack
           tags: |
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
