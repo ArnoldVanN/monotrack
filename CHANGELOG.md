@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.0](https://github.com/ArnoldVanN/monotrack/compare/v0.3.5...v0.4.0) (2026-01-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* trigger release
+
+### Miscellaneous Chores
+
+* trigger release ([71f50c1](https://github.com/ArnoldVanN/monotrack/commit/71f50c13d93480513dfebd4cff70bebaa1eeec8c))
+
 ## [0.3.5](https://github.com/ArnoldVanN/monotrack/compare/v0.3.4...v0.3.5) (2026-01-05)
 
 
