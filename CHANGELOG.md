@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3](https://github.com/ArnoldVanN/monotrack/compare/v0.4.2...v0.4.3) (2026-01-05)
+
+
+### Bug Fixes
+
+* use composite action instead of docker action for dynamic versions ([c766d89](https://github.com/ArnoldVanN/monotrack/commit/c766d8903e4f6e29ef3a74dc42d362def0e254de))
+
 ## [0.4.2](https://github.com/ArnoldVanN/monotrack/compare/v0.4.1...v0.4.2) (2026-01-05)
 
 
