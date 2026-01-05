@@ -1,4 +1,4 @@
-FROM golang:1.25 as builder
+FROM golang:1.25 AS builder
 
 WORKDIR /app
 
@@ -6,7 +6,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY main.go .
-COPY cmd/ . internal/
+COPY cmd/ . internal/ .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /usr/local/bin/monotrack ./main.go
 
