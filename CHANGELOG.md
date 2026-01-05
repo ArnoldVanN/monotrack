@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/ArnoldVanN/monotrack/compare/v0.4.1...v0.4.2) (2026-01-05)
+
+
+### Bug Fixes
+
+* typo in dockerfile ([ae95406](https://github.com/ArnoldVanN/monotrack/commit/ae954069f6b7eb1e1feba8f8e929a4297b5a0027))
+
 ## [0.4.1](https://github.com/ArnoldVanN/monotrack/compare/v0.4.0...v0.4.1) (2026-01-05)
 
 
