@@ -54,25 +54,55 @@ projects:
 
 An update to a file in the `packages/another-shared` package will result in the following output:
 ```bash
-monotrack compare 8a059ec 0f6a8d1
-another-shared
-shared-package
-backend
+monotrack compare --base 8a059ec --head 0f6a8d1
+packages/shared-pkg
+apps/backend
+apps/frontend
 ```
 
 ## Action
+
+### Inputs
+
+### `command`
+
+**Optional** The command to run. Defaults to `tag bump`
+
+### `base`
+
+**Optional** The base SHA used to compare. Will use the commit referenced in the latest tag if unspecified.
+
+### `head`
+
+**Optional** The HEAD SHA used to compare
+
+### `args`
+
+**Optional** Arguments to pass to the command
+
+### `config`
+
+**Optional** Name of the configuration file
+
+### Outputs
+
+### `output`
+
+The output of the CLI
+
+### Example usage
 ```yaml
 - name: Run Monotrack CLI
   id: monotrack
   uses: arnoldvann/monotrack@v0.3.0
   with:
-    args: ""                    # Optional
-    version: "v0.3.0"           # Optional, defaults to 'latest'
-    command: "compare"          # Optional, defaults to 'tag bump'
-    # Optionally specify a base and head SHA (only used when command == "compare")
+    version: "v0.3.3"                 # Optional, defaults to 'latest'
+    command: "tag bump"               # Optional, defaults to 'tag bump'
+    args: "-o json --pre-release"     # Optional
+    # Optionally specify a base and head SHA
     base: ""
     head: ""
-    config: "monotrack.yaml"    # Optional, specify config file
+    config: "monotrack.yaml"          # Optional
 
 - name: Print changed packages
   shell: bash
@@ -114,7 +144,7 @@ api/v0.0.3
 shared-pkg/v0.0.2
 ```
 
-> [!WARNING]  
+> [!IMPORTANT]  
 > If no git tags matching a project specified in the config exist, `tag` commands will default to `<project>/v0.0.0`  
 
 Though the default is `patch` and there is currently no way to set version components for specific projects, you can specify a version component:
@@ -128,34 +158,32 @@ The way to work around this is to specify `--projects` and run the `bump` comman
 
 #### Specify a base commit hash used to diff:
 ```bash
-monotrack tag bump bf25f51 -c minor
+monotrack tag bump --base bf25f51 -c minor
 frontend/v0.1.0
 ```
 
+> [!IMPORTANT]  
+> If no commit hashes are specified, they will be derived from the context  
+
 #### Output as json (Only on `bump` currently)
 ```bash
-monotrack tag bump 8a059ec --projects api -o json
+monotrack tag bump --base 8a059ec --projects api -o json
 [{"name":"api","path":"apps/api","version":"v0.0.3"},{"name":"go-shared","path":"packages/go-shared","version":"v0.0.2"}]
 ```
 
 #### Only list entrypoints (Only on `bump` currently)
 ```bash
-monotrack tag bump 8a059ec --projects api -o json -e
+monotrack tag bump --base 8a059ec --projects api -o json -e
 [{"name":"api","path":"apps/api","version":"v0.0.3"}]
 ```
 
 #### Use prereleases
 ```bash
-monotrack tag bump 8a059ec --projects api -pe -o json -c minor
+monotrack tag bump --base 8a059ec --projects api -pe -o json -c minor
 [{"name":"api","path":"apps/api","version":"v0.1.0-rc"}]
 ```
 
 # TODO
 - [ ] Dynamically generate `monotrack.yaml`  
 - [ ] Keep track of versions/tags in the `.monotrack-manifest.yaml`  
-- [ ] Implement other helper commands  
-- [ ] Support different output formats for the root command (by name, by path, by tag, etc.)  
-- [ ] Automatically create git tags if none exist yet? Since tags are required for the VersionBumper to get the commit refs to base the diff on.  
 - [ ] Sort outputs alphabetically
-- [ ] Implement pre release logic for bump command
-- [ ] Add `build.entrypoint` config option to allow for only outputting projects that require a build (`--entrypoints`)

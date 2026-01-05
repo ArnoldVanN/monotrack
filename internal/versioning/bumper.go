@@ -31,6 +31,7 @@ func (b *VersionBumper) BumpProjects(
 	kind BumpKind,
 	preRelease bool,
 	base string,
+	head string,
 ) (map[projects.Project]string, error) {
 	allTags, err := git.GetTagsForProjects(p)
 	if err != nil {
@@ -42,7 +43,7 @@ func (b *VersionBumper) BumpProjects(
 		return nil, err
 	}
 
-	changedProjects, err := getChangedProjectsToVersions(latestTags, base)
+	changedProjects, err := getChangedProjectsToVersions(latestTags, base, head)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +88,7 @@ Get changed projects.
 Expects a map of projects to versions.
 Returns a map of projects including dependencies, mapped to versions
 */
-func getChangedProjectsToVersions(p map[string]string, base string) (map[string]string, error) {
+func getChangedProjectsToVersions(p map[string]string, base string, head string) (map[string]string, error) {
 	baseCommits := make(map[string]string)
 
 	if base == "" {
@@ -105,9 +106,12 @@ func getChangedProjectsToVersions(p map[string]string, base string) (map[string]
 		}
 	}
 
-	head, err := git.GetHead()
-	if err != nil {
-		return nil, err
+	if head == "" {
+		gitHead, err := git.GetHead()
+		if err != nil {
+			return nil, err
+		}
+		head = gitHead
 	}
 
 	changedProjects := make(map[string]string, 0)
@@ -143,7 +147,6 @@ func getLatestTagPerProject(pToT map[projects.Project][]string) (map[string]stri
 	for p, tags := range pToT {
 		for _, t := range tags {
 			splitTag := strings.Split(t, "/")
-			// project := splitTag[len(splitTag)-2]
 			version := splitTag[len(splitTag)-1]
 
 			if !semver.IsValid(version) {
@@ -200,7 +203,7 @@ func bumpVersion(version string, kind BumpKind, preRelease bool) (string, error)
 	}
 
 	// TODO: custom suffixes
-	// Reattach prerelease or custom suffix if present
+	// Reattach prerelease or custom suffix
 	newVersion := fmt.Sprintf("v%d.%d.%d", major, minor, patch)
 	if preRelease {
 		newVersion = newVersion + "-" + pre
