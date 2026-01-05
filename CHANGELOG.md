@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.6](https://github.com/ArnoldVanN/monotrack/compare/v0.4.5...v0.4.6) (2026-01-05)
+
+
+### Bug Fixes
+
+* action output ([a5cf472](https://github.com/ArnoldVanN/monotrack/commit/a5cf4729bc901a8e1792f035df2d68c69821f81a))
+
 ## [0.4.5](https://github.com/ArnoldVanN/monotrack/compare/v0.4.4...v0.4.5) (2026-01-05)
 
 
