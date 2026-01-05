@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/ArnoldVanN/monotrack/compare/v0.4.0...v0.4.1) (2026-01-05)
+
+
+### Bug Fixes
+
+* added event to docker meta step ([5f5c63d](https://github.com/ArnoldVanN/monotrack/commit/5f5c63d9768ca0c1f4a5173de7f4a7329abeec09))
+
 ## [0.4.0](https://github.com/ArnoldVanN/monotrack/compare/v0.3.5...v0.4.0) (2026-01-05)
 
 
