@@ -62,7 +62,7 @@ apps/frontend
 
 ## Action
 
-### Inputs
+## Inputs
 
 ### `command`
 
@@ -84,13 +84,13 @@ apps/frontend
 
 **Optional** Name of the configuration file
 
-### Outputs
+## Outputs
 
 ### `output`
 
 The output of the CLI
 
-### Example usage
+## Example usage
 ```yaml
 - name: Run Monotrack CLI
   id: monotrack
