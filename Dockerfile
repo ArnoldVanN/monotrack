@@ -4,8 +4,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN mkdir -p ./.out && \
-    go build -o ./monotrack ./main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ./monotrack ./main.go
 
 FROM debian:bullseye-slim
 
