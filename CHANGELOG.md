@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.5](https://github.com/ArnoldVanN/monotrack/compare/v0.4.4...v0.4.5) (2026-01-05)
+
+
+### Bug Fixes
+
+* changed docker image name ([44444ce](https://github.com/ArnoldVanN/monotrack/commit/44444ce9600a88e3a9cd2bcd86f14f138e8d0a85))
+
 ## [0.4.4](https://github.com/ArnoldVanN/monotrack/compare/v0.4.3...v0.4.4) (2026-01-05)
 
 
