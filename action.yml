@@ -20,11 +20,12 @@ inputs:
     required: false
   version:
     description: "CLI version. Defaults to latest"
-    default: latest
+    default: "latest"
     required: false
 
 outputs:
   output:
+    value: string
     description: "The CLI output"
 
 branding:
@@ -32,11 +33,15 @@ branding:
   color: gray-dark
 
 runs:
-  using: "docker"
-  image: "ghcr.io/arnoldvann/monotrack:${{ inputs.version }}"
-  args:
-    - ${{ inputs.command }}
-    - ${{ inputs.base }}
-    - ${{ inputs.head }}
-    - ${{ inputs.args }}
-    - ${{ inputs.config }}
+  using: "composite"
+  steps:
+    - name: Run Monotrack CLI
+      shell: bash
+      run: |
+        OUTPUT=$(docker run --rm ghcr.io/arnoldvann/monotrack:${{ inputs.version }} \
+          ${{ inputs.command }} \
+          ${{ inputs.base }} \
+          ${{ inputs.head }} \
+          ${{ inputs.args }} \
+          ${{ inputs.config }})
+        echo "output=$OUTPUT" >> $GITHUB_OUTPUT
