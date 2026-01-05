@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.7](https://github.com/ArnoldVanN/monotrack/compare/v0.4.6...v0.4.7) (2026-01-05)
+
+
+### Bug Fixes
+
+* move code using github event back to action ([6d30ef2](https://github.com/ArnoldVanN/monotrack/commit/6d30ef2b902df5bab45e3642dd7dbc1b7a07b78d))
+
 ## [0.4.6](https://github.com/ArnoldVanN/monotrack/compare/v0.4.5...v0.4.6) (2026-01-05)
 
 
