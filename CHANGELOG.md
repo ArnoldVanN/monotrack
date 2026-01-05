@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.8](https://github.com/ArnoldVanN/monotrack/compare/v0.4.7...v0.4.8) (2026-01-05)
+
+
+### Features
+
+* log monotrack command in action ([fc4051d](https://github.com/ArnoldVanN/monotrack/commit/fc4051db5802c1ce736f971356ad3ff11868f5f5))
+
 ## [0.4.7](https://github.com/ArnoldVanN/monotrack/compare/v0.4.6...v0.4.7) (2026-01-05)
 
 
