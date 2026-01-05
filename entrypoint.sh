@@ -19,6 +19,12 @@ if [ -n "$CONFIG" ]; then
   CMD+=(--config "$CONFIG")
 fi
 
+{
+  printf 'Executing command: '
+  printf '%q ' "${CMD[@]}"
+  printf '\n'
+} >&2
+
 # Run Monotrack
 OUTPUT="$("${CMD[@]}")"
 echo "$OUTPUT"
