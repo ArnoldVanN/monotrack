@@ -44,6 +44,4 @@ fi
 
 # Run Monotrack
 OUTPUT="$("${CMD[@]}")"
-echo "output<<EOF" >> "$GITHUB_OUTPUT"
-echo "$OUTPUT" >> "$GITHUB_OUTPUT"
-echo "EOF" >> "$GITHUB_OUTPUT"
+echo "$OUTPUT"
