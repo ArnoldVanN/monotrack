@@ -40,6 +40,9 @@ runs:
       run: |
         set -euo pipefail
 
+        BASE=${{ inputs.base }}
+        HEAD=${{ inputs.head }}
+
         if [ -z "$BASE" ] || [ -z "$HEAD" ]; then
           case "$GITHUB_EVENT_NAME" in
             push)
