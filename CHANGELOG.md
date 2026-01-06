@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.14](https://github.com/ArnoldVanN/monotrack/compare/v0.4.13...v0.4.14) (2026-01-06)
+
+
+### Bug Fixes
+
+* log errors in GetRepoRoot ([cacaddd](https://github.com/ArnoldVanN/monotrack/commit/cacaddd1a18cd22f78f6ce1a499ab22e96eb230d))
+
 ## [0.4.13](https://github.com/ArnoldVanN/monotrack/compare/v0.4.12...v0.4.13) (2026-01-06)
 
 
