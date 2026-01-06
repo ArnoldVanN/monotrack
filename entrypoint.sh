@@ -8,7 +8,11 @@ ARGS=${4:-}
 CONFIG=${5:-}
 
 # Build command
-CMD=(monotrack "$COMMAND")
+CMD=(monotrack)
+
+read -r -a COMMAND_ARRAY <<< "$COMMAND"
+CMD+=("${COMMAND_ARRAY[@]}")
+
 if [ -n "$ARGS" ]; then
   read -r -a ARGS_ARRAY <<< "$ARGS"
   CMD+=("${ARGS_ARRAY[@]}")
