@@ -71,14 +71,16 @@ runs:
             -w /repo \
             ghcr.io/arnoldvann/monotrack:${{ inputs.version }} \
             "${{ inputs.command }}" \
-            "$BASE" \
-            "$HEAD" \
+            --base "$BASE" \
+            --head "$HEAD" \
             "${{ inputs.args }}" \
-            "${{ inputs.config }}"); then
+            --config "${{ inputs.config }}"); then
           echo "::error::Monotrack command failed"
           exit 1
         fi
 
-        echo "output<<EOF" >> "$GITHUB_OUTPUT"
-        echo "$OUTPUT" >> "$GITHUB_OUTPUT"
-        echo "EOF" >> "$GITHUB_OUTPUT"
+        {
+          echo 'output<<EOF'
+          echo "$OUTPUT"
+          echo EOF
+        } >> "$GITHUB_OUTPUT"
