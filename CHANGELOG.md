@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.20](https://github.com/ArnoldVanN/monotrack/compare/v0.4.19...v0.4.20) (2026-01-06)
+
+
+### Features
+
+* added logging to action ([854a65a](https://github.com/ArnoldVanN/monotrack/commit/854a65a3dd1aecf92e39f8d58ad34f86a7d33ece))
+
 ## [0.4.19](https://github.com/ArnoldVanN/monotrack/compare/v0.4.18...v0.4.19) (2026-01-06)
 
 
