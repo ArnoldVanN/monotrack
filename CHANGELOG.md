@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.17](https://github.com/ArnoldVanN/monotrack/compare/v0.4.16...v0.4.17) (2026-01-06)
+
+
+### Bug Fixes
+
+* filtering issues with defaulting tags and prereleases ([ad16a80](https://github.com/ArnoldVanN/monotrack/commit/ad16a80576cdf9b3d4ae83f072deedf4de35701c))
+
 ## [0.4.16](https://github.com/ArnoldVanN/monotrack/compare/v0.4.15...v0.4.16) (2026-01-06)
 
 
