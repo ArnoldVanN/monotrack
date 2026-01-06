@@ -66,19 +66,19 @@ runs:
         fi
 
         OUTPUT=""
-        if ! OUTPUT="$(
-          docker run --rm ghcr.io/arnoldvann/monotrack:${{ inputs.version }} \
+        if ! OUTPUT=$(docker run --rm \
+            -v "$GITHUB_WORKSPACE":/repo \
+            -w /repo \
+            ghcr.io/arnoldvann/monotrack:${{ inputs.version }} \
             "${{ inputs.command }}" \
             "$BASE" \
             "$HEAD" \
             "${{ inputs.args }}" \
-            "${{ inputs.config }}"
-        )"; then
+            "${{ inputs.config }}"); then
+          echo "::error::Monotrack command failed"
           exit 1
         fi
 
-        {
-          echo "output<<EOF"
-          echo "$OUTPUT"
-          echo "EOF"
-        } >> "$GITHUB_OUTPUT"
+        echo "output<<EOF" >> "$GITHUB_OUTPUT"
+        echo "$OUTPUT" >> "$GITHUB_OUTPUT"
+        echo "EOF" >> "$GITHUB_OUTPUT"

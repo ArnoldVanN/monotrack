@@ -123,6 +123,39 @@ The output of the CLI
     done
 ```
 
+```yaml
+  bump:
+    runs-on: ubuntu-latest
+    outputs:
+      projects: ${{ steps.monotrack_json.outputs.projects }}
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # Required for fetching tags and commit history
+
+      - name: Run Monotrack CLI
+        id: monotrack
+        uses: arnoldvann/monotrack@v0.4.12
+        with:
+          version: "v0.3.3"                 # Optional, defaults to 'latest'
+          command: "tag bump"               # Optional, defaults to 'tag bump'
+          args: "-o json -pe"               # Optional
+          # Optionally specify a base and head SHA
+          base: ""
+          head: ""
+          config: "monotrack.yaml"          # Optional
+
+      - name: Output monotrack result
+        id: monotrack_json
+        shell: bash
+        run: |
+          RAW_OUTPUT='${{ steps.monotrack.outputs.output }}'
+          echo "projects<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$RAW_OUTPUT" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+```
+
 > [!IMPORTANT]  
 > The monotrack configuration file should already exist when using the action.
 

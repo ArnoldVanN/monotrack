@@ -28,8 +28,4 @@ fi
   printf '\n'
 } >&2
 
-if ! OUTPUT="$("${CMD[@]}")"; then
-  exit 1
-fi
-
-echo "$OUTPUT"
+exec "${CMD[@]}"
