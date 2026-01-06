@@ -33,6 +33,7 @@ func GetRepoRoot() (string, error) {
 	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
 	out, err := cmd.Output()
 	if err != nil {
+		fmt.Printf("error getting repo root: %v", err)
 		return "", err
 	}
 	return strings.TrimSpace(string(out)), nil
