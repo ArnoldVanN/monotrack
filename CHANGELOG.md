@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.15](https://github.com/ArnoldVanN/monotrack/compare/v0.4.14...v0.4.15) (2026-01-06)
+
+
+### Bug Fixes
+
+* incorrect error output for GetRepoRoot ([b471b6f](https://github.com/ArnoldVanN/monotrack/commit/b471b6f8f476ef0d93379ef80a8797823acf7f0b))
+
 ## [0.4.14](https://github.com/ArnoldVanN/monotrack/compare/v0.4.13...v0.4.14) (2026-01-06)
 
 
