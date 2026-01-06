@@ -46,14 +46,7 @@ func GetTagsForProjects(p map[string]projects.Project) (map[projects.Project][]s
 	}
 
 	allTags := strings.Split(strings.TrimSpace(string(out)), "\n")
-
 	filtered := filterTagsForProjects(allTags, p)
-
-	for p, tags := range filtered {
-		if len(tags) == 0 {
-			filtered[p] = append(filtered[p], p.Name()+"/v0.0.0")
-		}
-	}
 
 	return filtered, nil
 }

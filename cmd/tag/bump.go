@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/arnoldvann/monotrack/internal/app"
+	"github.com/arnoldvann/monotrack/internal/projects"
 	"github.com/arnoldvann/monotrack/internal/versioning"
 	"github.com/spf13/cobra"
 )
@@ -31,9 +32,8 @@ var (
 
 	bumpCmd = &cobra.Command{
 		Use:   "bump",
-		Short: "Returns the bumped versions for the specified apps/packages if they changed, bumped by 'component'",
+		Short: "Returns the bumped versions for the specified apps/packages if they changed. Defaults to v0.0.1 if no tag exists",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			base := cmd.InheritedFlags().Lookup("base")
 			head := cmd.InheritedFlags().Lookup("head")
 
 			bumper := versioning.NewBumper()
@@ -43,15 +43,24 @@ var (
 				return err
 			}
 
-			bumped, err := bumper.BumpProjects(app.State.Projects, kind, preRelease, base.Value.String(), head.Value.String())
+			bumped, err := bumper.BumpProjects(app.State.Projects, kind, preRelease, head.Value.String())
 			if err != nil {
 				return err
 			}
 
+			bumpedProjectsTags := make(map[projects.Project]string)
+			for n, t := range bumped {
+				proj, ok := app.State.Projects[n]
+				if !ok {
+					return fmt.Errorf("invalid project name: %q", n)
+				}
+				bumpedProjectsTags[proj] = t
+			}
+
 			if entrypointsOnly {
-				for p := range bumped {
+				for p := range bumpedProjectsTags {
 					if !p.IsEntrypoint() {
-						delete(bumped, p)
+						delete(bumpedProjectsTags, p)
 					}
 				}
 			}
@@ -59,7 +68,7 @@ var (
 			if out == "json" {
 				o := make([]Output, 0, len(bumped))
 
-				for p, v := range bumped {
+				for p, v := range bumpedProjectsTags {
 					o = append(o, Output{
 						Name:    p.Name(),
 						Path:    p.Path(),
@@ -74,7 +83,7 @@ var (
 
 				fmt.Println(string(b))
 			} else {
-				for p, v := range bumped {
+				for p, v := range bumpedProjectsTags {
 					fmt.Println(p.Name() + "/" + v)
 				}
 			}

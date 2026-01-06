@@ -2,6 +2,7 @@ package versioning
 
 import (
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 
@@ -26,47 +27,53 @@ func NewBumper() VersionBumper {
 	return VersionBumper{}
 }
 
+// Returns a map of projects that have changed, to bumped versions. Defaults to v0.0.1 for projects that don't have a tag
 func (b *VersionBumper) BumpProjects(
 	p map[string]projects.Project,
 	kind BumpKind,
 	preRelease bool,
-	base string,
 	head string,
-) (map[projects.Project]string, error) {
-	allTags, err := git.GetTagsForProjects(p)
+) (map[string]string, error) {
+	projectToTags, err := git.GetTagsForProjects(p)
 	if err != nil {
 		return nil, err
 	}
 
-	latestTags, err := getLatestTagPerProject(allTags)
-	if err != nil {
-		return nil, err
-	}
-
-	changedProjects, err := getChangedProjectsToVersions(latestTags, base, head)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(changedProjects) == 0 {
-		return nil, nil
-	}
-
-	bumped, err := bump(changedProjects, kind, preRelease)
-	if err != nil {
-		return nil, err
-	}
-
-	projectVersions := make(map[projects.Project]string, len(bumped))
-	for name, version := range bumped {
-		p, ok := app.State.Projects[name]
-		if !ok {
-			return nil, fmt.Errorf("project %q not found in app state", name)
+	// Set default tags if they dont exist
+	for name, project := range p {
+		if _, ok := projectToTags[project]; !ok {
+			projectToTags[project] = []string{name + "/v0.0.0"}
 		}
-		projectVersions[p] = version
 	}
 
-	return projectVersions, nil
+	projectToLatest, err := getLatestTagPerProject(projectToTags)
+	if err != nil {
+		return nil, err
+	}
+
+	// Diff projects with existing tags only
+	zeroTagProjects := make(map[string]string)
+	for proj, t := range projectToLatest {
+		// TODO: if it's a preRelease, will have to do extra checks here
+		if strings.HasPrefix(t, "v0.0.0") {
+			zeroTagProjects[proj] = t
+			delete(projectToLatest, proj)
+		}
+	}
+
+	changedProjNameToVersion, err := getChangedProjectsVersions(projectToLatest, head)
+	if err != nil {
+		return nil, err
+	}
+
+	maps.Copy(changedProjNameToVersion, zeroTagProjects)
+
+	projectsToBumped, err := bump(changedProjNameToVersion, kind, preRelease)
+	if err != nil {
+		return nil, err
+	}
+
+	return projectsToBumped, nil
 }
 
 func bump(s map[string]string, kind BumpKind, preRelease bool) (map[string]string, error) {
@@ -86,24 +93,18 @@ func bump(s map[string]string, kind BumpKind, preRelease bool) (map[string]strin
 /*
 Get changed projects.
 Expects a map of projects to versions.
-Returns a map of projects including dependencies, mapped to versions
+Returns a map of projects that have changed including dependencies, mapped to their respective versions
 */
-func getChangedProjectsToVersions(p map[string]string, base string, head string) (map[string]string, error) {
+func getChangedProjectsVersions(p map[string]string, head string) (map[string]string, error) {
 	baseCommits := make(map[string]string)
 
-	if base == "" {
-		for proj, v := range p {
-			base, err := git.GetBase(proj + "/" + v)
-			if err != nil {
-				return nil, err
-			}
+	for proj, v := range p {
+		base, err := git.GetBase(proj + "/" + v)
+		if err != nil {
+			return nil, err
+		}
 
-			baseCommits[proj] = base
-		}
-	} else {
-		for proj := range p {
-			baseCommits[proj] = base
-		}
+		baseCommits[proj] = base
 	}
 
 	if head == "" {
@@ -168,7 +169,6 @@ func bumpVersion(version string, kind BumpKind, preRelease bool) (string, error)
 		return "", fmt.Errorf("invalid semver: %q", version)
 	}
 
-	// Remove leading "v"
 	v := strings.TrimPrefix(version, "v")
 
 	// Separate prerelease suffix
@@ -202,11 +202,32 @@ func bumpVersion(version string, kind BumpKind, preRelease bool) (string, error)
 		return "", fmt.Errorf("unknown component: %s", kind)
 	}
 
-	// TODO: custom suffixes
-	// Reattach prerelease or custom suffix
-	newVersion := fmt.Sprintf("v%d.%d.%d", major, minor, patch)
+	// TODO: custom suffixes and separators
 	if preRelease {
-		newVersion = newVersion + "-" + pre
+		if pre == "" {
+			pre = "rc.1"
+		} else {
+			// Try to bump existing numeric suffix, e.g., rc.1 -> rc.2
+			parts := strings.Split(pre, ".")
+			if len(parts) == 2 {
+				num, err := strconv.Atoi(parts[1])
+				if err == nil {
+					num++
+					pre = fmt.Sprintf("%s.%d", parts[0], num)
+				} else {
+					// fallback: append .1 if existing suffix isn't numeric
+					pre = fmt.Sprintf("%s.1", pre)
+				}
+			} else {
+				// fallback: append .1 if no numeric suffix
+				pre = fmt.Sprintf("%s.1", pre)
+			}
+		}
+	}
+
+	newVersion := fmt.Sprintf("v%d.%d.%d", major, minor, patch)
+	if pre != "" {
+		newVersion = fmt.Sprintf("%s-%s", newVersion, pre)
 	}
 
 	return newVersion, nil
