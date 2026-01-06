@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.19](https://github.com/ArnoldVanN/monotrack/compare/v0.4.18...v0.4.19) (2026-01-06)
+
+
+### Bug Fixes
+
+* formatting of inputs.command and inputs.arg ([c885dcb](https://github.com/ArnoldVanN/monotrack/commit/c885dcbd4d08c00382ff5dd86081b540ee98f7b8))
+
 ## [0.4.18](https://github.com/ArnoldVanN/monotrack/compare/v0.4.17...v0.4.18) (2026-01-06)
 
 
