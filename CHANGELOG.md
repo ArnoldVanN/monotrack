@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.16](https://github.com/ArnoldVanN/monotrack/compare/v0.4.15...v0.4.16) (2026-01-06)
+
+
+### Bug Fixes
+
+* dubious ownership error by adding /repo to safe.directory git conf ([e864f04](https://github.com/ArnoldVanN/monotrack/commit/e864f04a892c574ae834713d2439176705e9e803))
+
 ## [0.4.15](https://github.com/ArnoldVanN/monotrack/compare/v0.4.14...v0.4.15) (2026-01-06)
 
 
