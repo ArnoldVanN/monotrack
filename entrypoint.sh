@@ -9,6 +9,8 @@ CONFIG=${5:-}
 
 CMD=(monotrack)
 
+git config --global --add safe.directory /repo
+
 read -r -a COMMAND_ARRAY <<< "$COMMAND"
 CMD+=("${COMMAND_ARRAY[@]}")
 
