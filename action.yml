@@ -61,24 +61,38 @@ runs:
 
         HEAD="${HEAD:-$GITHUB_SHA}"
 
+        echo "Resolved BASE: $BASE"
+        echo "Resolved HEAD: $HEAD"
+
         if [ -z "$BASE" ]; then
           echo "::warning::Unable to determine base SHA."
         fi
 
         read -r -a CLI_ARGS <<< "${{ inputs.command }} ${{ inputs.args }}"
 
-        OUTPUT=""
-        if ! OUTPUT=$(docker run --rm \
+        echo "CLI Arguments: ${CLI_ARGS[*]}"
+        echo "Using Monotrack version: ${{ inputs.version }}"
+        echo "Using config file: ${{ inputs.config }}"
+
+        set +e
+        OUTPUT=$(docker run --rm \
             -v "$GITHUB_WORKSPACE":/repo \
             -w /repo \
             ghcr.io/arnoldvann/monotrack:${{ inputs.version }} \
             "${CLI_ARGS[@]}" \
             --base "$BASE" \
             --head "$HEAD" \
-            --config "${{ inputs.config }}"); then
-          echo "::error::Monotrack command failed"
-          exit 1
+            --config "${{ inputs.config }}")
+        EXIT_CODE=$?
+        set -e
+
+        if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::Monotrack command failed with exit code $EXIT_CODE"
+            echo "$OUTPUT"
+            exit $EXIT_CODE
         fi
+
+        echo "$OUTPUT"
 
         {
           echo 'output<<EOF'
