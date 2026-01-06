@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.13](https://github.com/ArnoldVanN/monotrack/compare/v0.4.12...v0.4.13) (2026-01-06)
+
+
+### Bug Fixes
+
+* added git to docker image ([298da2d](https://github.com/ArnoldVanN/monotrack/commit/298da2d71f188b9eb37e01018b9477a6cc23cca8))
+
 ## [0.4.12](https://github.com/ArnoldVanN/monotrack/compare/v0.4.11...v0.4.12) (2026-01-06)
 
 
