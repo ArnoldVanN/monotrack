@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.10](https://github.com/ArnoldVanN/monotrack/compare/v0.4.9...v0.4.10) (2026-01-06)
+
+
+### Bug Fixes
+
+* split `COMMAND` input ([7be91cd](https://github.com/ArnoldVanN/monotrack/commit/7be91cd5b06fe08c09af86a5bc12abd4917f3a20))
+
 ## [0.4.9](https://github.com/ArnoldVanN/monotrack/compare/v0.4.8...v0.4.9) (2026-01-05)
 
 
