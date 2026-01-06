@@ -12,7 +12,9 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /usr/local/bin/monotrack .
 
 FROM debian:bullseye-slim
 
-RUN apt-get update && apt-get install -y jq && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y jq git && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/bin/monotrack /usr/local/bin/monotrack
 
