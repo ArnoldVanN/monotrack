@@ -19,7 +19,7 @@ go build -o ./monotrack ./main.go
 
 ### Download binary
 ```bash
-curl -LO https://github.com/ArnoldVanN/monotrack/releases/download/v0.3.0/monotrack_Linux_x86_64.tar.gz
+curl -LO https://github.com/ArnoldVanN/monotrack/releases/download/v0.4.20/monotrack_Linux_x86_64.tar.gz
 tar -xzf monotrack_Linux_x86_64.tar.gz
 mv monotrack /usr/local/bin/
 ```
@@ -98,62 +98,26 @@ The output of the CLI
 ```yaml
 - name: Run Monotrack CLI
   id: monotrack
-  uses: arnoldvann/monotrack@v0.3.0
+  uses: arnoldvann/monotrack@v0.4.20
   with:
-    version: "v0.3.3"                 # Optional, defaults to 'latest'
-    command: "tag bump"               # Optional, defaults to 'tag bump'
-    args: "-o json --pre-release"     # Optional
+    version: v0.4.20                # Optional, defaults to 'latest'
+    command: tag bump               # Optional, defaults to 'tag bump'
+    args: -o json --pre-release     # Optional
     # Optionally specify a base and head SHA
     base: ""
     head: ""
-    config: "monotrack.yaml"          # Optional
+    config: monotrack.yaml          # Optional
 
-- name: Print changed packages
+- name: Output monotrack result
+  id: monotrack_json
   shell: bash
   run: |
-    # Capture the output from Monotrack and display it
-    CHANGED_PACKAGES="${{ steps.monotrack.outputs.output }}"
-    echo "The following packages have changed:"
-    echo "$CHANGED_PACKAGES"
-    # Example: run a command for each changed package
-    for pkg in $CHANGED_PACKAGES; do
-      echo "Processing $pkg..."
-      # Replace with a real command, e.g., build or test
-      # ./scripts/build.sh $pkg
-    done
-```
-
-```yaml
-  bump:
-    runs-on: ubuntu-latest
-    outputs:
-      projects: ${{ steps.monotrack_json.outputs.projects }}
-
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0 # Required for fetching tags and commit history
-
-      - name: Run Monotrack CLI
-        id: monotrack
-        uses: arnoldvann/monotrack@v0.4.12
-        with:
-          version: "v0.3.3"                 # Optional, defaults to 'latest'
-          command: "tag bump"               # Optional, defaults to 'tag bump'
-          args: "-o json -pe"               # Optional
-          # Optionally specify a base and head SHA
-          base: ""
-          head: ""
-          config: "monotrack.yaml"          # Optional
-
-      - name: Output monotrack result
-        id: monotrack_json
-        shell: bash
-        run: |
-          RAW_OUTPUT='${{ steps.monotrack.outputs.output }}'
-          echo "projects<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$RAW_OUTPUT" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+    OUTPUT='${{ steps.monotrack.outputs.output }}'
+    {
+      echo 'projects<<EOF'
+      echo "$OUTPUT"
+      echo EOF
+    } >> "$GITHUB_OUTPUT"
 ```
 
 > [!IMPORTANT]  
@@ -224,3 +188,4 @@ monotrack tag bump --base 8a059ec --projects api -pe -o json -c minor
 - [ ] Dynamically generate `monotrack.yaml`  
 - [ ] Keep track of versions/tags in the `.monotrack-manifest.yaml`  
 - [ ] Sort outputs alphabetically
+- [ ] Create git tags on `tag bump`

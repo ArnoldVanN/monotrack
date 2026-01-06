@@ -164,6 +164,7 @@ func getLatestTagPerProject(pToT map[projects.Project][]string) (map[string]stri
 	return latestPerProject, nil
 }
 
+// TODO: custom prefixes and separators
 func bumpVersion(version string, kind BumpKind, preRelease bool) (string, error) {
 	if !semver.IsValid(version) {
 		return "", fmt.Errorf("invalid semver: %q", version)
@@ -171,7 +172,7 @@ func bumpVersion(version string, kind BumpKind, preRelease bool) (string, error)
 
 	v := strings.TrimPrefix(version, "v")
 
-	// Separate prerelease suffix
+	// Split core and prerelease
 	parts := strings.SplitN(v, "-", 2)
 	core := parts[0]
 	pre := ""
@@ -188,40 +189,39 @@ func bumpVersion(version string, kind BumpKind, preRelease bool) (string, error)
 	minor, _ := strconv.Atoi(nums[1])
 	patch, _ := strconv.Atoi(nums[2])
 
-	switch kind {
-	case MajorBump:
-		major++
-		minor = 0
-		patch = 0
-	case MinorBump:
-		minor++
-		patch = 0
-	case PatchBump:
-		patch++
-	default:
-		return "", fmt.Errorf("unknown component: %s", kind)
-	}
+	if preRelease && pre != "" {
+		// We are already on a prerelease, bump prerelease number
+		rcParts := strings.Split(pre, ".")
+		if len(rcParts) == 2 {
+			if n, err := strconv.Atoi(rcParts[1]); err == nil {
+				pre = fmt.Sprintf("%s.%d", rcParts[0], n+1)
+			} else {
+				pre = fmt.Sprintf("%s.1", rcParts[0])
+			}
+		} else {
+			pre = fmt.Sprintf("%s.1", rcParts[0])
+		}
+	} else {
+		// Bump main version
+		switch kind {
+		case MajorBump:
+			major++
+			minor = 0
+			patch = 0
+		case MinorBump:
+			minor++
+			patch = 0
+		case PatchBump:
+			patch++
+		default:
+			return "", fmt.Errorf("unknown bump kind: %s", kind)
+		}
 
-	// TODO: custom suffixes and separators
-	if preRelease {
-		if pre == "" {
+		// Start prerelease if requested
+		if preRelease {
 			pre = "rc.1"
 		} else {
-			// Try to bump existing numeric suffix, e.g., rc.1 -> rc.2
-			parts := strings.Split(pre, ".")
-			if len(parts) == 2 {
-				num, err := strconv.Atoi(parts[1])
-				if err == nil {
-					num++
-					pre = fmt.Sprintf("%s.%d", parts[0], num)
-				} else {
-					// fallback: append .1 if existing suffix isn't numeric
-					pre = fmt.Sprintf("%s.1", pre)
-				}
-			} else {
-				// fallback: append .1 if no numeric suffix
-				pre = fmt.Sprintf("%s.1", pre)
-			}
+			pre = ""
 		}
 	}
 

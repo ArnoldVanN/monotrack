@@ -92,6 +92,7 @@ runs:
             exit $EXIT_CODE
         fi
 
+        echo "Monotrack result: "
         echo "$OUTPUT"
 
         {
