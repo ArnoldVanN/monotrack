@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.11](https://github.com/ArnoldVanN/monotrack/compare/v0.4.10...v0.4.11) (2026-01-06)
+
+
+### Features
+
+* capture non zero exit in action and entrypoint ([1131819](https://github.com/ArnoldVanN/monotrack/commit/113181918f172cd34e925b696351616db6dab159))
+
 ## [0.4.10](https://github.com/ArnoldVanN/monotrack/compare/v0.4.9...v0.4.10) (2026-01-06)
 
 
