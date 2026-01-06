@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.21](https://github.com/ArnoldVanN/monotrack/compare/v0.4.20...v0.4.21) (2026-01-06)
+
+
+### Bug Fixes
+
+* corrected prerelease bump logic ([6ae197c](https://github.com/ArnoldVanN/monotrack/commit/6ae197c75d37e5af1930697871020db353e5f0a0))
+
 ## [0.4.20](https://github.com/ArnoldVanN/monotrack/compare/v0.4.19...v0.4.20) (2026-01-06)
 
 
