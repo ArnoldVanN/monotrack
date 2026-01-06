@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.12](https://github.com/ArnoldVanN/monotrack/compare/v0.4.11...v0.4.12) (2026-01-06)
+
+
+### Features
+
+* added volume mount at GITHUB_WORKSPACE to action docker image ([ed0f614](https://github.com/ArnoldVanN/monotrack/commit/ed0f614657b699f3e73bdde10757c7809c6ef36b))
+
 ## [0.4.11](https://github.com/ArnoldVanN/monotrack/compare/v0.4.10...v0.4.11) (2026-01-06)
 
 
