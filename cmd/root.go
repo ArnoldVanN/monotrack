@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -66,7 +65,7 @@ func EnsureRepoRoot() error {
 
 	root, err := git.GetRepoRoot()
 	if err != nil {
-		return errors.New("not inside a git repository")
+		return fmt.Errorf("error getting repo root: %v", err)
 	}
 
 	if cwd != root {

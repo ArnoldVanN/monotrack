@@ -31,10 +31,9 @@ func GitDiff(base string, head string) ([]string, error) {
 
 func GetRepoRoot() (string, error) {
 	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	out, err := cmd.Output()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("error getting repo root: %v", err)
-		return "", err
+		return "", fmt.Errorf("git command failed: %s", out)
 	}
 	return strings.TrimSpace(string(out)), nil
 }
