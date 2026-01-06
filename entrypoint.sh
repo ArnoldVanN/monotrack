@@ -7,7 +7,6 @@ HEAD=${3:-}
 ARGS=${4:-}
 CONFIG=${5:-}
 
-# Build command
 CMD=(monotrack)
 
 read -r -a COMMAND_ARRAY <<< "$COMMAND"
@@ -29,6 +28,8 @@ fi
   printf '\n'
 } >&2
 
-# Run Monotrack
-OUTPUT="$("${CMD[@]}")"
+if ! OUTPUT="$("${CMD[@]}")"; then
+  exit 1
+fi
+
 echo "$OUTPUT"

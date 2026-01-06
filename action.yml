@@ -65,14 +65,17 @@ runs:
           echo "::warning::Unable to determine base SHA."
         fi
 
-        OUTPUT="$(
+        OUTPUT=""
+        if ! OUTPUT="$(
           docker run --rm ghcr.io/arnoldvann/monotrack:${{ inputs.version }} \
             "${{ inputs.command }}" \
             "$BASE" \
             "$HEAD" \
             "${{ inputs.args }}" \
             "${{ inputs.config }}"
-        )"
+        )"; then
+          exit 1
+        fi
 
         {
           echo "output<<EOF"
