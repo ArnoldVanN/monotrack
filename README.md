@@ -96,28 +96,51 @@ The output of the CLI
 
 ## Example usage
 ```yaml
-- name: Run Monotrack CLI
-  id: monotrack
-  uses: arnoldvann/monotrack@v0.4.20
-  with:
-    version: v0.4.20                # Optional, defaults to 'latest'
-    command: tag bump               # Optional, defaults to 'tag bump'
-    args: -o json --pre-release     # Optional
-    # Optionally specify a base and head SHA
-    base: ""
-    head: ""
-    config: monotrack.yaml          # Optional
+    jobs:
+      bump:
+        runs-on: ubuntu-latest
+        outputs:
+          projects: ${{ steps.monotrack_json.outputs.projects }}
 
-- name: Output monotrack result
-  id: monotrack_json
-  shell: bash
-  run: |
-    OUTPUT='${{ steps.monotrack.outputs.output }}'
-    {
-      echo 'projects<<EOF'
-      echo "$OUTPUT"
-      echo EOF
-    } >> "$GITHUB_OUTPUT"
+        steps:
+          - uses: actions/checkout@v5
+            with:
+              fetch-depth: 0
+
+          - name: Run Monotrack CLI
+            id: monotrack
+            uses: arnoldvann/monotrack@v0.4.24
+            with:
+              version: v0.4.24                # Optional, defaults to 'latest'
+              command: tag bump               # Optional, defaults to 'tag bump'
+              args: -o json --pre-release     # Optional
+              # Optionally specify a base and head SHA
+              base: ""
+              head: ""
+              config: monotrack.yaml          # Optional
+
+          - name: Output monotrack result
+            id: monotrack_json
+            shell: bash
+            run: |
+              OUTPUT='${{ steps.monotrack.outputs.output }}'
+              echo "projects<<EOF" >> "$GITHUB_OUTPUT"
+              echo "$OUTPUT" >> "$GITHUB_OUTPUT"
+              echo "EOF" >> "$GITHUB_OUTPUT"
+
+      # Do something with the output like build, test, etc
+      build:
+        needs:
+          - bump
+        strategy:
+          matrix: # Since we set --output to json, we can create a matrix based on that here
+            include: ${{ fromJson(needs.bump.outputs.projects) }}
+        uses: ./.github/workflows/build.yaml
+        with:
+          app: ${{ matrix.name }}
+          path: ${{ matrix.path }}
+          version: ${{ matrix.version }}
+        secrets: inherit
 ```
 
 > [!IMPORTANT]  
