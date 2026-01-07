@@ -96,6 +96,6 @@ runs:
         echo "Monotrack result: "
         echo "$OUTPUT"
 
-        echo "name<<EOF" >> "$GITHUB_OUTPUT"
-        echo "value" >> "$GITHUB_OUTPUT"
+        echo "output<<EOF" >> "$GITHUB_OUTPUT"
+        echo "$OUTPUT" >> "$GITHUB_OUTPUT"
         echo "EOF" >> "$GITHUB_OUTPUT"
