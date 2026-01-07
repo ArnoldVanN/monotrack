@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.23](https://github.com/ArnoldVanN/monotrack/compare/v0.4.22...v0.4.23) (2026-01-07)
+
+
+### Bug Fixes
+
+* im blind ([491bbaf](https://github.com/ArnoldVanN/monotrack/commit/491bbaf1f46a86e0f239e12bf59d119397b60745))
+
 ## [0.4.22](https://github.com/ArnoldVanN/monotrack/compare/v0.4.21...v0.4.22) (2026-01-06)
 
 
