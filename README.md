@@ -16,7 +16,7 @@ projects:
     type: node
     path: apps/frontend
     build:
-      entrypoint: true # Optionally specify entrypoints in order to use `-e`. Useful in CI when only needing to build entrypoint projects while testing all of them
+      entrypoint: true # Only entrypoints will be included in tags
   backend:
     type: go
     path: apps/backend
@@ -95,9 +95,9 @@ The output of the CLI
 
           - name: Run Monotrack CLI
             id: monotrack
-            uses: arnoldvann/monotrack@v0.5.0
+            uses: arnoldvann/monotrack@v0.6.0
             with:
-              version: v0.5.0                 # Optional, defaults to 'latest'
+              version: v0.6.0                 # Optional, defaults to 'latest'
               command: tag bump               # Optional, defaults to 'tag bump'
               args: -o json --pre-release     # Optional
               # Optionally specify a base and head SHA
@@ -145,7 +145,7 @@ go build -o ./monotrack ./main.go
 
 ### Download binary
 ```bash
-curl -LO https://github.com/ArnoldVanN/monotrack/releases/download/v0.5.0/monotrack_Linux_x86_64.tar.gz
+curl -LO https://github.com/ArnoldVanN/monotrack/releases/download/v0.6.0/monotrack_Linux_x86_64.tar.gz
 tar -xzf monotrack_Linux_x86_64.tar.gz
 mv monotrack /usr/local/bin/
 ```
@@ -192,13 +192,8 @@ frontend/v0.1.0
 > [!IMPORTANT]  
 > If no commit hashes are specified, they will be derived from the context  
 
-#### Output as json (Only on `bump` currently)
-```bash
-monotrack tag bump --base 8a059ec --projects api -o json
-[{"name":"api","path":"apps/api","version":"v0.0.3"},{"name":"go-shared","path":"packages/go-shared","version":"v0.0.2"}]
-```
 
-#### Only list entrypoints (Only on `bump` currently)
+#### Output as json (Only on `bump` currently)
 ```bash
 monotrack tag bump --base 8a059ec --projects api -o json -e
 [{"name":"api","path":"apps/api","version":"v0.0.3"}]
@@ -206,19 +201,20 @@ monotrack tag bump --base 8a059ec --projects api -o json -e
 
 #### Use prereleases
 ```bash
-monotrack tag bump --base 8a059ec --projects api -pe -o json -c minor
+monotrack tag bump --base 8a059ec --projects api -p -o json -c minor
 [{"name":"api","path":"apps/api","version":"v0.1.0-rc"}]
 ```
 
 #### Run the command without making any changes (dry run)
 ```bash
 monotrack tag bump --dry
-frontend/v0.1.0
-api/v0.1.0
-shared-pkg/v0.1.0
+frontend/v0.0.1
+api/v0.0.1
+shared-pkg/v0.0.1
 ```
 
 # TODO
 - [ ] Dynamically generate `monotrack.yaml`  
 - [ ] Keep track of versions/tags in the `.monotrack-manifest.yaml`  
 - [ ] Sort outputs alphabetically
+- [ ] Base version bump component on git commit message history?  

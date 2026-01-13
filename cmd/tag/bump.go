@@ -15,7 +15,6 @@ func init() {
 	bumpCmd.Flags().BoolVarP(&preRelease, "pre-release", "p", false, "use a pre-relelease version")
 	bumpCmd.Flags().StringVarP(&component, "component", "c", "patch", "the version component to bump (major, minor, patch)")
 	bumpCmd.Flags().StringVarP(&out, "out", "o", "plain", "output format (plain, json)")
-	bumpCmd.Flags().BoolVarP(&entrypointsOnly, "entrypoints-only", "e", false, "whether to only output applications considered as entrypoints")
 	bumpCmd.Flags().BoolVar(&dry, "dry", false, "Run the command without making any changes")
 }
 
@@ -26,15 +25,14 @@ type Output struct {
 }
 
 var (
-	preRelease      bool
-	component       string
-	out             string
-	entrypointsOnly bool
-	dry             bool
+	preRelease bool
+	component  string
+	out        string
+	dry        bool
 
 	bumpCmd = &cobra.Command{
 		Use:   "bump",
-		Short: "Returns the bumped versions for the specified apps/packages if they changed. Defaults to v0.0.1 if no tag exists",
+		Short: "Bumps specified entrypoint tags. Defaults to v0.0.1 if no tag exists",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			head := cmd.InheritedFlags().Lookup("head")
 
@@ -57,14 +55,6 @@ var (
 					return fmt.Errorf("invalid project name: %q", n)
 				}
 				bumpedProjectsTags[proj] = t
-			}
-
-			if entrypointsOnly {
-				for p := range bumpedProjectsTags {
-					if !p.IsEntrypoint() {
-						delete(bumpedProjectsTags, p)
-					}
-				}
 			}
 
 			if out == "json" {

@@ -94,8 +94,6 @@ func (c *Config) Validate() error {
 }
 
 func BuildProjects(config *Config, roots []string) (map[string]Project, error) {
-	projects := make(map[string]Project)
-
 	filteredConfigs := make(map[string]ProjectConfig, 0)
 
 	// if user defined projects via flag, only build those
@@ -113,15 +111,24 @@ func BuildProjects(config *Config, roots []string) (map[string]Project, error) {
 		filteredConfigs = config.Projects
 	}
 
+	allProjects := make(map[string]Project)
 	for name := range filteredConfigs {
-		proj, err := buildProject(name, config, projects, map[string]bool{})
+		proj, err := buildProject(name, config, allProjects, map[string]bool{})
 		if err != nil {
 			return nil, err
 		}
-		projects[name] = proj
+		allProjects[name] = proj
 	}
 
-	return projects, nil
+	entrypoints := make(map[string]Project)
+
+	for name, proj := range allProjects {
+		if proj.IsEntrypoint() {
+			entrypoints[name] = proj
+		}
+	}
+
+	return entrypoints, nil
 }
 
 func buildProject(name string, config *Config, built map[string]Project, visiting map[string]bool) (Project, error) {
