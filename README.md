@@ -37,7 +37,6 @@ projects:
 An update to a file in the `packages/another-shared` package will result in the following output:
 ```bash
 monotrack compare --base 8a059ec --head 0f6a8d1
-packages/shared-pkg
 apps/backend
 apps/frontend
 ```
@@ -164,11 +163,9 @@ mv monotrack /usr/local/bin/
 git tag --list
 frontend/v0.0.1
 api/v0.0.2
-shared-pkg/v0.0.1
 monotrack tag bump
 frontend/v0.0.2
 api/v0.0.3
-shared-pkg/v0.0.2
 ```
 
 > [!IMPORTANT]  
@@ -179,7 +176,6 @@ Though the default is `patch` and there is currently no way to set version compo
 monotrack tag bump --component minor
 frontend/v0.1.0
 api/v0.1.0
-shared-pkg/v0.1.0
 ```
 The way to work around this is to specify `--projects` and run the `bump` command for each group of projects that can be bumped with the same version component.  
 
@@ -195,7 +191,7 @@ frontend/v0.1.0
 
 #### Output as json (Only on `bump` currently)
 ```bash
-monotrack tag bump --base 8a059ec --projects api -o json -e
+monotrack tag bump --base 8a059ec --projects api -o json
 [{"name":"api","path":"apps/api","version":"v0.0.3"}]
 ```
 
