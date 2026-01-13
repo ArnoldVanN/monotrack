@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.0](https://github.com/ArnoldVanN/monotrack/compare/v0.4.24...v0.5.0) (2026-01-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* create git tags on `tag bump`
+
+### Features
+
+* create git tags on `tag bump` ([83206f1](https://github.com/ArnoldVanN/monotrack/commit/83206f1b60f7291404fd35c760d9be198fa5f3f7))
+
 ## [0.4.24](https://github.com/ArnoldVanN/monotrack/compare/v0.4.23...v0.4.24) (2026-01-07)
 
 
