@@ -35,6 +35,15 @@ var (
 				return err
 			}
 
+			shallow, err := git.IsShallowRepo()
+			if err != nil {
+				return err
+			}
+
+			if shallow {
+				return fmt.Errorf("Shallow repository detected. Fetch full history before running.")
+			}
+
 			cfg, err := config.LoadConfig(cfgFile)
 			if err != nil {
 				return err

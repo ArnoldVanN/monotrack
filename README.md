@@ -8,24 +8,6 @@ However this would of course require manually implementing the automation for ea
 For now, my main use cases are easily creating pre-release/development tags for development branches,
 and only running actions for projects that actually changed, without having to rely on a heavier tool like release-please or release-it.  
 
-## Installation
-
-### Build from source
-1. Clone the repository.
-2. Run:
-```bash
-go build -o ./monotrack ./main.go
-```
-
-### Download binary
-```bash
-curl -LO https://github.com/ArnoldVanN/monotrack/releases/download/v0.4.20/monotrack_Linux_x86_64.tar.gz
-tar -xzf monotrack_Linux_x86_64.tar.gz
-mv monotrack /usr/local/bin/
-```
-
-# Usage
-
 ## Configuration example
 Given the following `monotrack.yaml`:
 ```yaml
@@ -96,6 +78,10 @@ The output of the CLI
 
 ## Example usage
 ```yaml
+    # Required for tag creation
+    permissions:
+      contents: write
+
     jobs:
       bump:
         runs-on: ubuntu-latest
@@ -105,13 +91,13 @@ The output of the CLI
         steps:
           - uses: actions/checkout@v5
             with:
-              fetch-depth: 0
+              fetch-depth: 0 # Required
 
           - name: Run Monotrack CLI
             id: monotrack
-            uses: arnoldvann/monotrack@v0.4.24
+            uses: arnoldvann/monotrack@v0.5.0
             with:
-              version: v0.4.24                # Optional, defaults to 'latest'
+              version: v0.5.0                 # Optional, defaults to 'latest'
               command: tag bump               # Optional, defaults to 'tag bump'
               args: -o json --pre-release     # Optional
               # Optionally specify a base and head SHA
@@ -147,6 +133,23 @@ The output of the CLI
 > The monotrack configuration file should already exist when using the action.
 
 ## CLI
+
+## Installation
+
+### Build from source
+1. Clone the repository.
+2. Run:
+```bash
+go build -o ./monotrack ./main.go
+```
+
+### Download binary
+```bash
+curl -LO https://github.com/ArnoldVanN/monotrack/releases/download/v0.5.0/monotrack_Linux_x86_64.tar.gz
+tar -xzf monotrack_Linux_x86_64.tar.gz
+mv monotrack /usr/local/bin/
+```
+
 1. Run `monotrack init` to create a template configuration (`monotrack.yaml`). The `.monotrack-manifest.yaml` is a work in progress.
 2. Edit the config file to match your actual paths and dependencies.
 3. Run `monotrack compare <baseSHA> <HEAD>` to list packages that changed
@@ -207,8 +210,15 @@ monotrack tag bump --base 8a059ec --projects api -pe -o json -c minor
 [{"name":"api","path":"apps/api","version":"v0.1.0-rc"}]
 ```
 
+#### Run the command without making any changes (dry run)
+```bash
+monotrack tag bump --dry
+frontend/v0.1.0
+api/v0.1.0
+shared-pkg/v0.1.0
+```
+
 # TODO
 - [ ] Dynamically generate `monotrack.yaml`  
 - [ ] Keep track of versions/tags in the `.monotrack-manifest.yaml`  
 - [ ] Sort outputs alphabetically
-- [ ] Create git tags on `tag bump`

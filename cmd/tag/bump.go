@@ -16,6 +16,7 @@ func init() {
 	bumpCmd.Flags().StringVarP(&component, "component", "c", "patch", "the version component to bump (major, minor, patch)")
 	bumpCmd.Flags().StringVarP(&out, "out", "o", "plain", "output format (plain, json)")
 	bumpCmd.Flags().BoolVarP(&entrypointsOnly, "entrypoints-only", "e", false, "whether to only output applications considered as entrypoints")
+	bumpCmd.Flags().BoolVar(&dry, "dry", false, "Run the command without making any changes")
 }
 
 type Output struct {
@@ -29,6 +30,7 @@ var (
 	component       string
 	out             string
 	entrypointsOnly bool
+	dry             bool
 
 	bumpCmd = &cobra.Command{
 		Use:   "bump",
@@ -43,7 +45,7 @@ var (
 				return err
 			}
 
-			bumped, err := bumper.BumpProjects(app.State.Projects, kind, preRelease, head.Value.String())
+			bumped, err := bumper.BumpProjects(app.State.Projects, kind, preRelease, head.Value.String(), dry)
 			if err != nil {
 				return err
 			}

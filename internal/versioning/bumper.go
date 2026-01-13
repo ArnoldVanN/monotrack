@@ -33,6 +33,7 @@ func (b *VersionBumper) BumpProjects(
 	kind BumpKind,
 	preRelease bool,
 	head string,
+	dry bool,
 ) (map[string]string, error) {
 	projectToTags, err := git.GetTagsForProjects(p)
 	if err != nil {
@@ -73,21 +74,35 @@ func (b *VersionBumper) BumpProjects(
 		return nil, err
 	}
 
+	if !dry {
+		if err := pushTags(projectsToBumped); err != nil {
+			return nil, err
+		}
+	}
+
 	return projectsToBumped, nil
 }
 
-func bump(s map[string]string, kind BumpKind, preRelease bool) (map[string]string, error) {
-	out := make(map[string]string, len(s))
+func getLatestTagPerProject(pToT map[projects.Project][]string) (map[string]string, error) {
+	latestPerProject := make(map[string]string, len(pToT))
 
-	for p, v := range s {
-		ver, err := bumpVersion(v, kind, preRelease)
-		if err != nil {
-			return nil, err
+	for p, tags := range pToT {
+		for _, t := range tags {
+			splitTag := strings.Split(t, "/")
+			version := splitTag[len(splitTag)-1]
+
+			if !semver.IsValid(version) {
+				return nil, fmt.Errorf("invalid semver: %q", version)
+			}
+
+			currentLatest, exists := latestPerProject[p.Name()]
+			if !exists || semver.Compare(version, currentLatest) > 0 {
+				latestPerProject[p.Name()] = version
+			}
 		}
-		out[p] = ver
 	}
 
-	return out, nil
+	return latestPerProject, nil
 }
 
 /*
@@ -142,26 +157,18 @@ func getChangedProjectsVersions(p map[string]string, head string) (map[string]st
 	return changedProjects, nil
 }
 
-func getLatestTagPerProject(pToT map[projects.Project][]string) (map[string]string, error) {
-	latestPerProject := make(map[string]string, len(pToT))
+func bump(t map[string]string, kind BumpKind, preRelease bool) (map[string]string, error) {
+	out := make(map[string]string, len(t))
 
-	for p, tags := range pToT {
-		for _, t := range tags {
-			splitTag := strings.Split(t, "/")
-			version := splitTag[len(splitTag)-1]
-
-			if !semver.IsValid(version) {
-				return nil, fmt.Errorf("invalid semver: %q", version)
-			}
-
-			currentLatest, exists := latestPerProject[p.Name()]
-			if !exists || semver.Compare(version, currentLatest) > 0 {
-				latestPerProject[p.Name()] = version
-			}
+	for p, v := range t {
+		ver, err := bumpVersion(v, kind, preRelease)
+		if err != nil {
+			return nil, err
 		}
+		out[p] = ver
 	}
 
-	return latestPerProject, nil
+	return out, nil
 }
 
 // TODO: custom prefixes and separators
@@ -231,4 +238,34 @@ func bumpVersion(version string, kind BumpKind, preRelease bool) (string, error)
 	}
 
 	return newVersion, nil
+}
+
+func pushTags(tags map[string]string) error {
+	if len(tags) == 0 {
+		return nil
+	}
+
+	fullTags := make([]string, 0, len(tags))
+	for project, version := range tags {
+		tag := fmt.Sprintf("%s/%s", project, version)
+		fullTags = append(fullTags, tag)
+
+		exists, err := git.TagExistsOnRemote(tag)
+		if err != nil {
+			return fmt.Errorf("checking remote tag %q failed: %w", tag, err)
+		}
+		if exists {
+			return fmt.Errorf("remote tag already exists: %s", tag)
+		}
+	}
+
+	for _, tag := range fullTags {
+		git.CreateTag(tag, fmt.Sprintf("Release %s", tag))
+	}
+
+	if err := git.PushTags(fullTags); err != nil {
+		return err
+	}
+
+	return nil
 }
