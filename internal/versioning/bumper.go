@@ -250,6 +250,7 @@ func pushTags(tags map[string]string) error {
 		tag := fmt.Sprintf("%s/%s", project, version)
 		fullTags = append(fullTags, tag)
 
+		// TODO: do this concurrently
 		exists, err := git.TagExistsOnRemote(tag)
 		if err != nil {
 			return fmt.Errorf("checking remote tag %q failed: %w", tag, err)
@@ -260,7 +261,10 @@ func pushTags(tags map[string]string) error {
 	}
 
 	for _, tag := range fullTags {
-		git.CreateTag(tag, fmt.Sprintf("Release %s", tag))
+		err := git.CreateTag(tag, fmt.Sprintf("Release %s", tag))
+		if err != nil {
+			return err
+		}
 	}
 
 	if err := git.PushTags(fullTags); err != nil {
