@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.6.0](https://github.com/ArnoldVanN/monotrack/compare/v0.5.0...v0.6.0) (2026-01-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* only bump tags for entrypoints
+
+### Features
+
+* only bump tags for entrypoints ([e38417d](https://github.com/ArnoldVanN/monotrack/commit/e38417d0cf960c32fffcc5dfb8a4e7402fb9cd39))
+
+
+### Bug Fixes
+
+* check error after creating git tag locally ([06b74e0](https://github.com/ArnoldVanN/monotrack/commit/06b74e043bf67fe6a23689b69bd6935db47ae2ca))
+
 ## [0.5.0](https://github.com/ArnoldVanN/monotrack/compare/v0.4.24...v0.5.0) (2026-01-13)
 
 
