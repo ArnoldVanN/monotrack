@@ -1,21 +1,24 @@
 package versioning
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/arnoldvann/monotrack/internal/app"
 	"github.com/arnoldvann/monotrack/internal/git"
 )
 
-func ListChangedProjectNamesBetweenCommits(base string, head string) ([]string, error) {
+// Returns all projects including dependencies
+func ListProjectsChangedBetweenCommits(base string, head string) (map[string]bool, error) {
 	diff, err := git.GitDiff(base, head)
 	if err != nil {
 		return nil, err
 	}
 
+	fmt.Printf("diff: %v\n", diff)
+
 	// set of dependency names to parent projects
 	reverseDeps := make(map[string]map[string]struct{})
-
 	for _, p := range app.State.Projects {
 		for _, d := range p.ListDependencies() {
 			if reverseDeps[d.Name()] == nil {
@@ -25,35 +28,32 @@ func ListChangedProjectNamesBetweenCommits(base string, head string) ([]string, 
 		}
 	}
 
-	changedMap := make(map[string]struct{})
+	changedMap := make(map[string]bool)
 
-	for _, p := range app.State.Projects {
+	for name, cfg := range app.State.Config.Projects {
 		for _, l := range diff {
-			if strings.Contains(l, p.Path()) {
-				changedMap[p.Name()] = struct{}{}
-				collectParents(p.Name(), reverseDeps, changedMap)
+			if strings.Contains(l, cfg.Path) {
+				changedMap[name] = true
+				collectParents(name, reverseDeps, changedMap)
 			}
 		}
 	}
 
-	names := make([]string, 0, len(changedMap))
-	for k := range changedMap {
-		names = append(names, k)
-	}
+	fmt.Printf("changed: %v\n", changedMap)
 
-	return names, nil
+	return changedMap, nil
 }
 
 func collectParents(
-	dep string,
+	name string,
 	reverse map[string]map[string]struct{},
-	out map[string]struct{},
+	out map[string]bool,
 ) {
-	for parent := range reverse[dep] {
-		if _, seen := out[parent]; seen {
+	for parent := range reverse[name] {
+		if out[parent] {
 			continue
 		}
-		out[parent] = struct{}{}
+		out[parent] = true
 		collectParents(parent, reverse, out)
 	}
 }

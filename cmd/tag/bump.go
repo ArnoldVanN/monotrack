@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/arnoldvann/monotrack/internal/app"
+	"github.com/arnoldvann/monotrack/internal/printer"
 	"github.com/arnoldvann/monotrack/internal/projects"
 	"github.com/arnoldvann/monotrack/internal/versioning"
 	"github.com/spf13/cobra"
@@ -14,20 +15,12 @@ import (
 func init() {
 	bumpCmd.Flags().BoolVarP(&preRelease, "pre-release", "p", false, "use a pre-relelease version")
 	bumpCmd.Flags().StringVarP(&component, "component", "c", "patch", "the version component to bump (major, minor, patch)")
-	bumpCmd.Flags().StringVarP(&out, "out", "o", "plain", "output format (plain, json)")
 	bumpCmd.Flags().BoolVar(&dry, "dry", false, "Run the command without making any changes")
-}
-
-type Output struct {
-	Name    string `json:"name"`
-	Path    string `json:"path"`
-	Version string `json:"version"`
 }
 
 var (
 	preRelease bool
 	component  string
-	out        string
 	dry        bool
 
 	bumpCmd = &cobra.Command{
@@ -35,6 +28,7 @@ var (
 		Short: "Bumps specified entrypoint tags. Defaults to v0.0.1 if no tag exists",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			head := cmd.InheritedFlags().Lookup("head")
+			out := cmd.InheritedFlags().Lookup("out")
 
 			bumper := versioning.NewBumper()
 
@@ -57,13 +51,15 @@ var (
 				bumpedProjectsTags[proj] = t
 			}
 
-			if out == "json" {
-				o := make([]Output, 0, len(bumped))
+			if out.Value.String() == "json" {
+				o := make([]printer.BumpOutput, 0, len(bumped))
 
 				for p, v := range bumpedProjectsTags {
-					o = append(o, Output{
-						Name:    p.Name(),
-						Path:    p.Path(),
+					o = append(o, printer.BumpOutput{
+						Output: printer.Output{
+							Name: p.Name(),
+							Path: p.Path(),
+						},
 						Version: v,
 					})
 				}

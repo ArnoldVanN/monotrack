@@ -8,7 +8,7 @@ import (
 	"github.com/arnoldvann/monotrack/internal/app"
 	"github.com/arnoldvann/monotrack/internal/config"
 	"github.com/arnoldvann/monotrack/internal/git"
-	proj "github.com/arnoldvann/monotrack/internal/projects"
+	"github.com/arnoldvann/monotrack/internal/projects"
 	"github.com/spf13/cobra"
 )
 
@@ -19,7 +19,8 @@ var (
 
 	cfgFile  string
 	manifest string
-	projects []string
+	proj     []string
+	out      string
 
 	base string
 	head string
@@ -54,7 +55,7 @@ var (
 				return err
 			}
 
-			p, err := proj.BuildProjects(cfg, projectsFlag)
+			p, err := projects.BuildProjects(cfg, projectsFlag)
 			if err != nil {
 				return err
 			}
@@ -93,7 +94,8 @@ func Execute(v string, c string, d string) error {
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "f", "monotrack.yaml", "config file")
 	rootCmd.PersistentFlags().StringVarP(&manifest, "manifest", "m", ".monotrack-manifest.yaml", "manifest containing projects/tags")
-	rootCmd.PersistentFlags().StringSliceVar(&projects, "projects", make([]string, 0), "projects to include in operation")
+	rootCmd.PersistentFlags().StringSliceVar(&proj, "projects", make([]string, 0), "projects to include in operation")
+	rootCmd.PersistentFlags().StringVarP(&out, "out", "o", "plain", "output format (plain, json)")
 
 	rootCmd.PersistentFlags().StringVar(&base, "base", "", "base commit SHA")
 	rootCmd.PersistentFlags().StringVar(&head, "head", "", "head commit SHA")

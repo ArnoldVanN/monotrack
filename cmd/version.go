@@ -14,6 +14,6 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version number of Monotrack",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("v%v\n %v\n", version, date)
+		fmt.Printf("%v\n%v\n", version, date)
 	},
 }

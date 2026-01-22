@@ -9,6 +9,7 @@ import (
 	"github.com/arnoldvann/monotrack/internal/app"
 	"github.com/arnoldvann/monotrack/internal/git"
 	"github.com/arnoldvann/monotrack/internal/projects"
+	"github.com/arnoldvann/monotrack/internal/utils"
 	"golang.org/x/mod/semver"
 )
 
@@ -47,7 +48,7 @@ func (b *VersionBumper) BumpProjects(
 		}
 	}
 
-	projectToLatest, err := getLatestTagPerProject(projectToTags)
+	projectToLatest, err := utils.GetLatestTagPerProject(projectToTags)
 	if err != nil {
 		return nil, err
 	}
@@ -83,32 +84,10 @@ func (b *VersionBumper) BumpProjects(
 	return projectsToBumped, nil
 }
 
-func getLatestTagPerProject(pToT map[projects.Project][]string) (map[string]string, error) {
-	latestPerProject := make(map[string]string, len(pToT))
-
-	for p, tags := range pToT {
-		for _, t := range tags {
-			splitTag := strings.Split(t, "/")
-			version := splitTag[len(splitTag)-1]
-
-			if !semver.IsValid(version) {
-				return nil, fmt.Errorf("invalid semver: %q", version)
-			}
-
-			currentLatest, exists := latestPerProject[p.Name()]
-			if !exists || semver.Compare(version, currentLatest) > 0 {
-				latestPerProject[p.Name()] = version
-			}
-		}
-	}
-
-	return latestPerProject, nil
-}
-
 /*
 Get changed projects.
-Expects a map of projects to versions.
-Returns a map of projects that have changed including dependencies, mapped to their respective versions
+Expects a map of projects to current versions.
+Returns a map of projects that have changed, mapped to their respective versions
 */
 func getChangedProjectsVersions(p map[string]string, head string) (map[string]string, error) {
 	baseCommits := make(map[string]string)
@@ -133,24 +112,23 @@ func getChangedProjectsVersions(p map[string]string, head string) (map[string]st
 	changedProjects := make(map[string]string, 0)
 
 	for _, c := range baseCommits {
-		changed, err := ListChangedProjectNamesBetweenCommits(c, head)
+		changed, err := ListProjectsChangedBetweenCommits(c, head)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, name := range changed {
-			pr, ok := app.State.Projects[name]
-			if !ok {
-				return nil, fmt.Errorf("project name not found in config: %q", name)
-			}
-
-			// skip if the name returned from the listChanged function is not in the list of input tags
-			// this can happen when a project does not have any git tags yet. since the diffing function is based on the global app.State.Projects and doesnt filter by tags.
-			// so we do it here
-			if _, ok := p[pr.Name()]; !ok {
+		for name, c := range changed {
+			if !c {
 				continue
 			}
-			changedProjects[pr.Name()] = p[name]
+
+			// filter out dependencies
+			pr, ok := app.State.Projects[name]
+			if !ok {
+				continue
+			}
+
+			changedProjects[pr.Name()] = p[pr.Name()]
 		}
 	}
 
