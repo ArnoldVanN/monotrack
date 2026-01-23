@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.3](https://github.com/ArnoldVanN/monotrack/compare/v0.6.2...v0.6.3) (2026-01-23)
+
+
+### Features
+
+* added project type to json output ([718b44d](https://github.com/ArnoldVanN/monotrack/commit/718b44d6b1bdb7a9bdf30df91cbccbb23c3cc9a8))
+
 ## [0.6.2](https://github.com/ArnoldVanN/monotrack/compare/v0.6.1...v0.6.2) (2026-01-23)
 
 
