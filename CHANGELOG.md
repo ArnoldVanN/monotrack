@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/ArnoldVanN/monotrack/compare/v0.6.1...v0.6.2) (2026-01-23)
+
+
+### Bug Fixes
+
+* added github token input ([a21e6f8](https://github.com/ArnoldVanN/monotrack/commit/a21e6f8e1c93565165e781e9f080464af4e37723))
+
 ## [0.6.1](https://github.com/ArnoldVanN/monotrack/compare/v0.6.0...v0.6.1) (2026-01-23)
 
 
