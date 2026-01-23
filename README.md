@@ -149,6 +149,7 @@ The output of the CLI
           app: ${{ matrix.name }}
           path: ${{ matrix.path }}
           version: ${{ matrix.version }}
+          type: ${{ matrix.type }}
         secrets: inherit
 ```
 
@@ -209,13 +210,13 @@ The way to work around this is to specify `--projects` and run the `bump` comman
 #### Output as json
 ```bash
 monotrack tag bump --base 8a059ec --projects api -o json
-[{"name":"api","path":"apps/api","version":"v0.0.3"}]
+[{"name":"api","path":"apps/api","version":"v0.0.3","type":"go"}]
 ```
 
 #### Use prereleases
 ```bash
-monotrack tag bump --base 8a059ec --projects api -p -o json -c minor
-[{"name":"api","path":"apps/api","version":"v0.1.0-rc"}]
+monotrack tag bump --base 8a059ec --projects api -o json -p
+[{"name":"api","path":"apps/api","version":"v0.0.4-rc.1","type":"go"}}]
 ```
 
 #### Run the command without making any changes (dry run)

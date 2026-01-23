@@ -1,41 +1,20 @@
 package projects
 
 type GoProject struct {
-	name         string
-	path         string
-	typeName     projectType
-	dependencies []Project
-	entrypoint   bool
+	*BaseProject
 }
 
-func NewGoProject(name, path string, entry bool) Project {
+func NewGoProject(name, path string, entry bool, t projectType) Project {
 	return &GoProject{
-		name:       name,
-		path:       path,
-		entrypoint: entry,
+		BaseProject: &BaseProject{
+			name:       name,
+			path:       path,
+			entrypoint: entry,
+			typeName:   t,
+		},
 	}
 }
 
-func (p *GoProject) Name() string {
-	return p.name
-}
-
-func (p *GoProject) Path() string {
-	return p.path
-}
-
-func (p *GoProject) GetType() projectType {
-	return p.typeName
-}
-
-func (p *GoProject) AddDependency(proj Project) {
-	p.dependencies = append(p.dependencies, proj)
-}
-
-func (p *GoProject) ListDependencies() []Project {
-	return p.dependencies
-}
-
-func (p *GoProject) IsEntrypoint() bool {
-	return p.entrypoint
+func (p *GoProject) UpdateVersion(newVersion string) error {
+	return nil
 }

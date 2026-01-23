@@ -59,6 +59,7 @@ var (
 						Output: printer.Output{
 							Name: p.Name(),
 							Path: p.Path(),
+							Type: string(p.GetType()),
 						},
 						Version: v,
 					})

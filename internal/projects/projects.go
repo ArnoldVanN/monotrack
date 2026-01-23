@@ -94,9 +94,8 @@ func (c *Config) Validate() error {
 }
 
 func BuildProjects(config *Config, roots []string) (map[string]Project, error) {
-	filteredConfigs := make(map[string]ProjectConfig, 0)
-
 	// if user defined projects via flag, only build those
+	filteredConfigs := config.Projects
 	if len(roots) > 0 {
 		for _, r := range roots {
 			conf, ok := config.Projects[r]
@@ -105,10 +104,6 @@ func BuildProjects(config *Config, roots []string) (map[string]Project, error) {
 			}
 			filteredConfigs[r] = conf
 		}
-	}
-
-	if len(filteredConfigs) == 0 {
-		filteredConfigs = config.Projects
 	}
 
 	allProjects := make(map[string]Project)
@@ -146,9 +141,9 @@ func buildProject(name string, config *Config, built map[string]Project, visitin
 	var p Project
 	switch cfg.Type {
 	case ProjectTypeGo:
-		p = NewGoProject(name, cfg.Path, cfg.Build.Entrypoint)
+		p = NewGoProject(name, cfg.Path, cfg.Build.Entrypoint, cfg.Type)
 	case ProjectTypeNode:
-		p = NewNodeProject(name, cfg.Path, cfg.Build.Entrypoint)
+		p = NewNodeProject(name, cfg.Path, cfg.Build.Entrypoint, cfg.Type)
 	default:
 		return nil, fmt.Errorf("unsupported project type %q", cfg.Type)
 	}

@@ -82,6 +82,7 @@ var (
 					o = append(o, printer.Output{
 						Name: k,
 						Path: v.Path,
+						Type: string(v.Type),
 					})
 				}
 
