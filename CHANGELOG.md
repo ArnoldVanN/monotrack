@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.5](https://github.com/ArnoldVanN/monotrack/compare/v0.6.4...v0.6.5) (2026-01-23)
+
+
+### Bug Fixes
+
+* switched from merging diff results to comparing each project ([9997cbe](https://github.com/ArnoldVanN/monotrack/commit/9997cbecebe478bee3369956d9925210fd82c529))
+
 ## [0.6.4](https://github.com/ArnoldVanN/monotrack/compare/v0.6.3...v0.6.4) (2026-01-23)
 
 
