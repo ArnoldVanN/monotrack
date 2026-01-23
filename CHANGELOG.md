@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.1](https://github.com/ArnoldVanN/monotrack/compare/v0.6.0...v0.6.1) (2026-01-23)
+
+
+### Bug Fixes
+
+* incorrect dependency resolution ([6af321f](https://github.com/ArnoldVanN/monotrack/commit/6af321f34ea771e57fb3405d4f174c8a8faa1e15))
+* modified change detection logic ([c960343](https://github.com/ArnoldVanN/monotrack/commit/c960343a5fb5bf2303161947a921032befd0b1c4))
+
 ## [0.6.0](https://github.com/ArnoldVanN/monotrack/compare/v0.5.0...v0.6.0) (2026-01-13)
 
 
