@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.4](https://github.com/ArnoldVanN/monotrack/compare/v0.6.3...v0.6.4) (2026-01-23)
+
+
+### Bug Fixes
+
+* add id to release-please step ([0cbb654](https://github.com/ArnoldVanN/monotrack/commit/0cbb654005c705a235fe93d477bec8bc5759443a))
+
 ## [0.6.3](https://github.com/ArnoldVanN/monotrack/compare/v0.6.2...v0.6.3) (2026-01-23)
 
 
