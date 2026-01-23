@@ -99,6 +99,19 @@ api/v0.0.2
 The output of the CLI
 
 ## Example usage
+Perform operations on all projects including internal dependencies:
+```yaml
+  - name: Run Monotrack CLI
+    id: monotrack
+    uses: arnoldvann/monotrack@v0.6
+    with:
+      version: v0.6.5
+      command: compare
+      args: -o json
+      config: monotrack.yaml
+```
+
+Bump tags for projects that have changed between their latest tag and HEAD.
 ```yaml
     # Required for tag creation
     permissions:
@@ -117,14 +130,11 @@ The output of the CLI
 
           - name: Run Monotrack CLI
             id: monotrack
-            uses: arnoldvann/monotrack@v0.6.2
+            uses: arnoldvann/monotrack@v0.6
             with:
-              version: v0.6.2                 # Optional, defaults to 'latest'
+              version: v0.6.5                 # Optional, defaults to 'latest' (recommended)
               command: tag bump               # Optional, defaults to 'tag bump'
               args: -o json --pre-release     # Optional
-              # Optionally specify a base and head SHA
-              base: ""
-              head: ""
               config: monotrack.yaml          # Optional
               token: ${{ github.token }}
 
@@ -137,7 +147,7 @@ The output of the CLI
               echo "$OUTPUT" >> "$GITHUB_OUTPUT"
               echo "EOF" >> "$GITHUB_OUTPUT"
 
-      # Do something with the output like build, test, etc
+      # Do something with the output like build, test, release, etc
       build:
         needs:
           - bump
@@ -150,11 +160,10 @@ The output of the CLI
           path: ${{ matrix.path }}
           version: ${{ matrix.version }}
           type: ${{ matrix.type }}
-        secrets: inherit
 ```
 
-> [!IMPORTANT]  
-> The monotrack configuration file should already exist when using the action.
+> [!TIP]  
+> For a full working example, see the [testing repo](https://github.com/ArnoldVanN/monotrack-testing)
 
 ## CLI
 
@@ -176,7 +185,7 @@ mv monotrack /usr/local/bin/
 
 1. Run `monotrack init` to create a template configuration (`monotrack.yaml`). The `.monotrack-manifest.yaml` is a work in progress.
 2. Edit the config file to match your actual paths and dependencies.
-3. Run `monotrack compare <baseSHA> <HEAD>` to list packages that changed
+3. Run `monotrack compare --head <HEAD>` to list packages that changed
 
 > [!NOTE]  
 > Other commands might be available in the CLI but are not yet implemented.  
@@ -188,6 +197,7 @@ mv monotrack /usr/local/bin/
 git tag --list
 frontend/v0.0.1
 api/v0.0.2
+
 monotrack tag bump
 frontend/v0.0.2
 api/v0.0.3
@@ -196,30 +206,28 @@ api/v0.0.3
 > [!IMPORTANT]  
 > If no git tags matching a project specified in the config exist, `tag` commands will default to `<project>/v0.0.0`  
 
-Though the default is `patch` and there is currently no way to set version components for specific projects, you can specify a version component:
+Though the default is `patch` and there is **currently** no way to set version components for specific projects, you can specify a version component:
 ```bash
 monotrack tag bump --component minor
 frontend/v0.1.0
 api/v0.1.0
 ```
 The way to work around this is to specify `--projects` and run the `bump` command for each group of projects that can be bumped with the same version component.  
-
-> [!IMPORTANT]  
-> If no commit hashes are specified, monotrack will attempt to derive them from the context  
+PR's to base version component on git commit messages are welcome...
 
 #### Output as json
 ```bash
-monotrack tag bump --base 8a059ec --projects api -o json
+monotrack tag bump --head 8a059ec --projects api -o json
 [{"name":"api","path":"apps/api","version":"v0.0.3","type":"go"}]
 ```
 
 #### Use prereleases
 ```bash
-monotrack tag bump --base 8a059ec --projects api -o json -p
+monotrack tag bump --head 8a059ec --projects api -o json -p
 [{"name":"api","path":"apps/api","version":"v0.0.4-rc.1","type":"go"}}]
 ```
 
-#### Run the command without making any changes (dry run)
+#### Run the bump command without making any changes (dry run)
 ```bash
 monotrack tag bump --dry
 frontend/v0.0.1
@@ -231,4 +239,5 @@ shared-pkg/v0.0.1
 - [ ] Dynamically generate `monotrack.yaml`  
 - [ ] Keep track of versions/tags in the `.monotrack-manifest.yaml`  
 - [ ] Sort outputs alphabetically
-- [ ] Base version bump component on git commit message history?  
+- [ ] Base version bump component on git commit message history? (aka make a release-please clone for monorepos)
+- [ ] Add tests
