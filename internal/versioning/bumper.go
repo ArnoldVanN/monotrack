@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/arnoldvann/monotrack/internal/app"
 	"github.com/arnoldvann/monotrack/internal/git"
 	"github.com/arnoldvann/monotrack/internal/projects"
 	"github.com/arnoldvann/monotrack/internal/utils"
@@ -76,7 +75,7 @@ func (b *VersionBumper) BumpProjects(
 	}
 
 	if !dry {
-		if err := pushTags(projectsToBumped); err != nil {
+		if err := pushTags(projectsToBumped, head); err != nil {
 			return nil, err
 		}
 	}
@@ -90,48 +89,21 @@ Expects a map of projects to current versions.
 Returns a map of projects that have changed, mapped to their respective versions
 */
 func getChangedProjectsVersions(p map[string]string, head string) (map[string]string, error) {
-	baseCommits := make(map[string]string)
+	changedProjects := make(map[string]string)
 
-	for proj, v := range p {
-		base, err := git.GetBase(proj + "/" + v)
+	for proj, version := range p {
+		base, err := git.GetBase(proj + "/" + version)
 		if err != nil {
 			return nil, err
 		}
 
-		baseCommits[proj] = base
-	}
-
-	// NOTE: maybe remove this to make sure no empty head hash gets provided during CI,
-	// for example caused by failure to automatically determin the sha in the Action
-	// instead error on empty head flag
-	if head == "" {
-		gitHead, err := git.GetHead()
-		if err != nil {
-			return nil, err
-		}
-		head = gitHead
-	}
-
-	changedProjects := make(map[string]string, 0)
-
-	for _, c := range baseCommits {
-		changed, err := ListProjectsChangedBetweenCommits(c, head)
+		changed, err := ListProjectsChangedBetweenCommits(base, head)
 		if err != nil {
 			return nil, err
 		}
 
-		for name, c := range changed {
-			if !c {
-				continue
-			}
-
-			// filter out dependencies
-			pr, ok := app.State.Projects[name]
-			if !ok {
-				continue
-			}
-
-			changedProjects[pr.Name()] = p[pr.Name()]
+		if changed[proj] {
+			changedProjects[proj] = version
 		}
 	}
 
@@ -221,7 +193,7 @@ func bumpVersion(version string, kind BumpKind, preRelease bool) (string, error)
 	return newVersion, nil
 }
 
-func pushTags(tags map[string]string) error {
+func pushTags(tags map[string]string, head string) error {
 	if len(tags) == 0 {
 		return nil
 	}
@@ -242,7 +214,7 @@ func pushTags(tags map[string]string) error {
 	}
 
 	for _, tag := range fullTags {
-		err := git.CreateTag(tag, fmt.Sprintf("Release %s", tag))
+		err := git.CreateTag(tag, fmt.Sprintf("Release %s", tag), head)
 		if err != nil {
 			return err
 		}

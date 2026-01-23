@@ -76,7 +76,7 @@ func filterTagsForProjects(tags []string, proj map[string]projects.Project) map[
 	filteredTags := make(map[projects.Project][]string, 0)
 	for _, p := range proj {
 		for _, t := range tags {
-			if strings.Contains(t, p.Name()) {
+			if strings.HasPrefix(t, p.Name()+"/") {
 				filteredTags[p] = append(filteredTags[p], t)
 			}
 		}
@@ -105,8 +105,8 @@ func makeRefs(tags []string) []string {
 	return refs
 }
 
-func CreateTag(tag, message string) error {
-	cmd := exec.Command("git", "tag", "-a", tag, "-m", message)
+func CreateTag(tag, message, commit string) error {
+	cmd := exec.Command("git", "tag", "-a", tag, "-m", message, commit)
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
