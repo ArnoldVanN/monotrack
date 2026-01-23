@@ -1,7 +1,6 @@
 package versioning
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/arnoldvann/monotrack/internal/app"
@@ -15,33 +14,30 @@ func ListProjectsChangedBetweenCommits(base string, head string) (map[string]boo
 		return nil, err
 	}
 
-	fmt.Printf("diff: %v\n", diff)
-
-	// set of dependency names to parent projects
 	reverseDeps := make(map[string]map[string]struct{})
-	for _, p := range app.State.Projects {
-		for _, d := range p.ListDependencies() {
-			if reverseDeps[d.Name()] == nil {
-				reverseDeps[d.Name()] = make(map[string]struct{})
+	for n, p := range app.State.Config.Projects {
+		for _, d := range p.DependsOn {
+			if reverseDeps[d] == nil {
+				reverseDeps[d] = make(map[string]struct{})
 			}
-			reverseDeps[d.Name()][p.Name()] = struct{}{}
+			reverseDeps[d][n] = struct{}{}
 		}
 	}
 
-	changedMap := make(map[string]bool)
-
+	changed := map[string]bool{}
 	for name, cfg := range app.State.Config.Projects {
 		for _, l := range diff {
-			if strings.Contains(l, cfg.Path) {
-				changedMap[name] = true
-				collectParents(name, reverseDeps, changedMap)
+			if strings.HasPrefix(l, cfg.Path+"/") {
+				changed[name] = true
 			}
 		}
 	}
 
-	fmt.Printf("changed: %v\n", changedMap)
+	for name := range changed {
+		collectParents(name, reverseDeps, changed)
+	}
 
-	return changedMap, nil
+	return changed, nil
 }
 
 func collectParents(

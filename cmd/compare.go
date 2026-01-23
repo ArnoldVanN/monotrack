@@ -118,14 +118,6 @@ func getChangedProjects(p map[string]string, head string) (map[string]bool, erro
 		baseCommits[proj] = base
 	}
 
-	if head == "" {
-		gitHead, err := git.GetHead()
-		if err != nil {
-			return nil, err
-		}
-		head = gitHead
-	}
-
 	allProjects := make(map[string]bool, 0)
 
 	for _, c := range baseCommits {
