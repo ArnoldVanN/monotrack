@@ -12,33 +12,52 @@ and only running actions for projects that actually changed, without having to r
 Given the following `monotrack.yaml`:
 ```yaml
 projects:
-  frontend:
+  web:
     type: node
-    path: apps/frontend
+    path: apps/web
     build:
-      entrypoint: true # Only entrypoints will be included in tags
-  backend:
-    type: go
-    path: apps/backend
+      entrypoint: true # Only entrypoints will be included in tag bumps
     dependsOn:
-      - shared-package
+      - ui
+  docs:
+    type: node
+    path: apps/docs
     build:
       entrypoint: true
-  shared-package:
-    type: go
-    path: packages/shared
     dependsOn:
-      - another-shared
-  another-shared:
+      - ui
+  api:
     type: go
-    path: packages/another-shared
+    path: apps/api
+    dependsOn:
+      - go-shared
+    build:
+      entrypoint: true
+  go-shared:
+    type: go
+    path: packages/go-shared
+    dependsOn:
+      - nested-shared
+  ui:
+    type: node
+    path: packages/ui
+  nested-shared:
+    type: go
+    path: packages/nested-shared
 ```
 
-An update to a file in the `packages/another-shared` package will result in the following output:
+An update to a file in the `packages/nested-shared` package will result in the following output:
 ```bash
-monotrack compare --base 8a059ec --head 0f6a8d1
-apps/backend
-apps/frontend
+monotrack compare --head 34c2818
+api
+nested-shared
+go-shared
+```
+
+Or, when bumping, since only entrypoints are bumped:
+```bash
+monotrack tag bump --dry
+api/v0.0.2
 ```
 
 ## Action
@@ -55,7 +74,7 @@ apps/frontend
 
 ### `head`
 
-**Optional** The HEAD SHA used to compare
+**Optional** The HEAD SHA used to compare, might be required in special cases, like when triggering a workflow manually
 
 ### `args`
 
@@ -94,9 +113,9 @@ The output of the CLI
 
           - name: Run Monotrack CLI
             id: monotrack
-            uses: arnoldvann/monotrack@v0.6.0
+            uses: arnoldvann/monotrack@v0.6.1
             with:
-              version: v0.6.0                 # Optional, defaults to 'latest'
+              version: v0.6.1                 # Optional, defaults to 'latest'
               command: tag bump               # Optional, defaults to 'tag bump'
               args: -o json --pre-release     # Optional
               # Optionally specify a base and head SHA
@@ -144,7 +163,7 @@ go build -o ./monotrack ./main.go
 
 ### Download binary
 ```bash
-curl -LO https://github.com/ArnoldVanN/monotrack/releases/download/v0.6.0/monotrack_Linux_x86_64.tar.gz
+curl -LO https://github.com/ArnoldVanN/monotrack/releases/download/v0.6.1/monotrack_Linux_x86_64.tar.gz
 tar -xzf monotrack_Linux_x86_64.tar.gz
 mv monotrack /usr/local/bin/
 ```
@@ -158,7 +177,7 @@ mv monotrack /usr/local/bin/
 
 ### Examples
 
-#### Output bumped versions for specified projects:
+#### Bump git tags for specified projects
 ```bash
 git tag --list
 frontend/v0.0.1
@@ -179,17 +198,10 @@ api/v0.1.0
 ```
 The way to work around this is to specify `--projects` and run the `bump` command for each group of projects that can be bumped with the same version component.  
 
-#### Specify a base commit hash used to diff:
-```bash
-monotrack tag bump --base bf25f51 -c minor
-frontend/v0.1.0
-```
-
 > [!IMPORTANT]  
-> If no commit hashes are specified, they will be derived from the context  
+> If no commit hashes are specified, monotrack will attempt to derive them from the context  
 
-
-#### Output as json (Only on `bump` currently)
+#### Output as json
 ```bash
 monotrack tag bump --base 8a059ec --projects api -o json
 [{"name":"api","path":"apps/api","version":"v0.0.3"}]

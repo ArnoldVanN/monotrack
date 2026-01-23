@@ -101,6 +101,9 @@ func getChangedProjectsVersions(p map[string]string, head string) (map[string]st
 		baseCommits[proj] = base
 	}
 
+	// NOTE: maybe remove this to make sure no empty head hash gets provided during CI,
+	// for example caused by failure to automatically determin the sha in the Action
+	// instead error on empty head flag
 	if head == "" {
 		gitHead, err := git.GetHead()
 		if err != nil {
