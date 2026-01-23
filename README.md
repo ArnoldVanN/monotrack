@@ -88,6 +88,10 @@ api/v0.0.2
 
 **Optional** CLI version. Defaults to latest
 
+### `token`
+
+**Optional** GitHub token used to push tags. Required when using `tag bump`
+
 ## Outputs
 
 ### `output`
@@ -113,15 +117,16 @@ The output of the CLI
 
           - name: Run Monotrack CLI
             id: monotrack
-            uses: arnoldvann/monotrack@v0.6.1
+            uses: arnoldvann/monotrack@v0.6.2
             with:
-              version: v0.6.1                 # Optional, defaults to 'latest'
+              version: v0.6.2                 # Optional, defaults to 'latest'
               command: tag bump               # Optional, defaults to 'tag bump'
               args: -o json --pre-release     # Optional
               # Optionally specify a base and head SHA
               base: ""
               head: ""
               config: monotrack.yaml          # Optional
+              token: ${{ github.token }}
 
           - name: Output monotrack result
             id: monotrack_json
@@ -163,7 +168,7 @@ go build -o ./monotrack ./main.go
 
 ### Download binary
 ```bash
-curl -LO https://github.com/ArnoldVanN/monotrack/releases/download/v0.6.1/monotrack_Linux_x86_64.tar.gz
+curl -LO https://github.com/ArnoldVanN/monotrack/releases/download/v0.6.2/monotrack_Linux_x86_64.tar.gz
 tar -xzf monotrack_Linux_x86_64.tar.gz
 mv monotrack /usr/local/bin/
 ```
