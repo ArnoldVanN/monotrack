@@ -2,7 +2,7 @@
 While there already exist plenty of tools to help with code verisoning, support across languages, specifically for monorepos, may be considered insufficient.  
 Monotrack is a generic and simple solution to help ease the pains of CI in a monorepo.  
 This project is currently in it's testing phase and has some limitations. For example having to manually specify a local/internal dependency tree.  
-Though this is a limitation other versioning tools also observe.  
+Though this is a limitation other CI tools also observe.  
 For now, the main use cases are easily running jobs and creating tags for projects that have actually changed,  
 while taking into consideration local internal dependency trees.
 
