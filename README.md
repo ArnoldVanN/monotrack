@@ -99,6 +99,10 @@ The output of the CLI
 ## Example usage
 Perform operations on all projects including internal dependencies:
 ```yaml
+  - uses: actions/checkout@v5
+    with:
+      fetch-depth: 0 # Required
+
   - name: Run Monotrack CLI
     id: monotrack
     uses: arnoldvann/monotrack@v0.6
@@ -239,3 +243,4 @@ shared-pkg/v0.0.1
 - [ ] Sort outputs alphabetically
 - [ ] Base version bump component on git commit message history? (aka make a release-please clone for monorepos)
 - [ ] Add tests
+- [ ] Default action inputs.version to latest patch of current action major
