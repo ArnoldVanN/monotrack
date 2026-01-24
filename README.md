@@ -1,12 +1,10 @@
 ## Purpose
 While there already exist plenty of tools to help with code verisoning, support across languages, specifically for monorepos, may be considered insufficient.  
-I built Monotrack because I needed a generic and simple solution to help with versioning in a monorepo. Especially for testing purposes.  
+Monotrack is a generic and simple solution to help with versioning in a monorepo.  
 This project is currently in it's testing phase and has some limitations. For example having to manually specify a local/internal dependency tree.  
 Though this is a limitation other versioning tools also observe.  
-A solution I might implement is automatic generation of dependency trees.  
-However this would of course require manually implementing the automation for each lanugage individually.  
-For now, my main use cases are easily creating pre-release/development tags for development branches,
-and only running actions for projects that actually changed, without having to rely on a heavier tool like release-please or release-it.  
+For now, the main use cases are easily running jobs and creating tags for projects that have actually changed,  
+while taking into consideration the local internal dependency trees.
 
 ## Configuration example
 Given the following `monotrack.yaml`:
@@ -84,7 +82,7 @@ api/v0.0.2
 
 **Optional** Name of the configuration file
 
-### `verison`
+### `version`
 
 **Optional** CLI version. Defaults to latest
 
