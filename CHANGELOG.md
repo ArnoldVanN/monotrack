@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.6](https://github.com/ArnoldVanN/monotrack/compare/v0.6.5...v0.6.6) (2026-02-02)
+
+
+### Bug Fixes
+
+* remove entrypoint error for helm projects ([0d03888](https://github.com/ArnoldVanN/monotrack/commit/0d03888668a17960074f7cc2cafef9a8f2988600))
+
 ## [0.6.5](https://github.com/ArnoldVanN/monotrack/compare/v0.6.4...v0.6.5) (2026-01-23)
 
 
