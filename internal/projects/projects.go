@@ -77,17 +77,18 @@ func (c *Config) Validate() error {
 			}
 		}
 
-		if pc.Build.Entrypoint {
-			switch pc.Type {
-			case ProjectTypeNode, ProjectTypeGo:
-				// ok
-			default:
-				return fmt.Errorf(
-					"project %q: build.entrypoint is not allowed for project type %q",
-					name, pc.Type,
-				)
-			}
-		}
+		// remove for now since we're only outputting entrypoints now, so helm charts need to be entrypoint too
+		// if pc.Build.Entrypoint {
+		// 	switch pc.Type {
+		// 	case ProjectTypeNode, ProjectTypeGo:
+		// 		// ok
+		// 	default:
+		// 		return fmt.Errorf(
+		// 			"project %q: build.entrypoint is not allowed for project type %q",
+		// 			name, pc.Type,
+		// 		)
+		// 	}
+		// }
 	}
 
 	return nil

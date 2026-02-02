@@ -244,3 +244,4 @@ shared-pkg/v0.0.1
 - [ ] Base version bump component on git commit message history? (aka make a release-please clone for monorepos)
 - [ ] Add tests
 - [ ] Default action inputs.version to latest patch of current action major
+- [ ] For helm, update versions in each Chart.yaml `version`, and detect umbrella charts in order to update `dependencies[n].version` in the parent
