@@ -145,6 +145,8 @@ func buildProject(name string, config *Config, built map[string]Project, visitin
 		p = NewGoProject(name, cfg.Path, cfg.Build.Entrypoint, cfg.Type)
 	case ProjectTypeNode:
 		p = NewNodeProject(name, cfg.Path, cfg.Build.Entrypoint, cfg.Type)
+	case ProjectTypeHelm:
+		p = NewHelmProject(name, cfg.Path, cfg.Build.Entrypoint, cfg.Type)
 	default:
 		return nil, fmt.Errorf("unsupported project type %q", cfg.Type)
 	}
