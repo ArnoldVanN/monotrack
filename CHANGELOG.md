@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.7](https://github.com/ArnoldVanN/monotrack/compare/v0.6.6...v0.6.7) (2026-02-02)
+
+
+### Bug Fixes
+
+* added ProjectTypeHelm to project initialization switch case ([09cd18b](https://github.com/ArnoldVanN/monotrack/commit/09cd18be71e0a8b52f3d3f2add2f0c9dbba6363f))
+
 ## [0.6.6](https://github.com/ArnoldVanN/monotrack/compare/v0.6.5...v0.6.6) (2026-02-02)
 
 
