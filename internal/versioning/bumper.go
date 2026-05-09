@@ -1,6 +1,7 @@
 package versioning
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -116,19 +117,21 @@ func (b *VersionBumper) BumpProjects(
 	return results, nil
 }
 
-// Finalize creates and pushes tags for the bumped projects, atomically with
-// any extra refs (e.g. a branch ref when also pushing a release commit).
-func (b *VersionBumper) Finalize(results []BumpResult, head string, extraRefs []string) error {
+// Finalize creates and pushes tags for the bumped projects. When branch is
+// non-empty, the current branch tip (containing the changelog commit) is
+// pushed atomically with the tags. On a non-fast-forward rejection (a
+// concurrent push to the same branch), the changelog commit is rebased onto
+// the new remote tip, the tags are re-pointed at the rebased commit, and the
+// push is retried.
+func (b *VersionBumper) Finalize(results []BumpResult, head string, branch string) error {
 	if len(results) == 0 {
 		return nil
 	}
 
-	tagRefs := make([]string, 0, len(results))
 	tags := make([]string, 0, len(results))
 	for _, r := range results {
 		tag := fmt.Sprintf("%s/%s", r.Project.Name(), r.NewVersion)
 		tags = append(tags, tag)
-		tagRefs = append(tagRefs, "refs/tags/"+tag)
 
 		exists, err := git.TagExistsOnRemote(tag)
 		if err != nil {
@@ -139,13 +142,57 @@ func (b *VersionBumper) Finalize(results []BumpResult, head string, extraRefs []
 		}
 	}
 
+	if err := createTagsAt(tags, head); err != nil {
+		return err
+	}
+
+	const maxAttempts = 3
+	for attempt := 1; ; attempt++ {
+		err := git.PushRefsAtomic(buildRefs(tags, branch))
+		if err == nil {
+			return nil
+		}
+		if branch == "" || !errors.Is(err, git.ErrNonFastForward) || attempt >= maxAttempts {
+			return err
+		}
+
+		if err := git.FetchBranch(branch); err != nil {
+			return fmt.Errorf("after non-fast-forward push: %w", err)
+		}
+		newHead, err := git.RebaseOnto("origin/" + branch)
+		if err != nil {
+			return fmt.Errorf("after non-fast-forward push: %w", err)
+		}
+		for _, tag := range tags {
+			if err := git.DeleteLocalTag(tag); err != nil {
+				return err
+			}
+		}
+		if err := createTagsAt(tags, newHead); err != nil {
+			return err
+		}
+		head = newHead
+	}
+}
+
+func createTagsAt(tags []string, commit string) error {
 	for _, tag := range tags {
-		if err := git.CreateTag(tag, fmt.Sprintf("Release %s", tag), head); err != nil {
+		if err := git.CreateTag(tag, fmt.Sprintf("Release %s", tag), commit); err != nil {
 			return err
 		}
 	}
+	return nil
+}
 
-	return git.PushRefsAtomic(append(extraRefs, tagRefs...))
+func buildRefs(tags []string, branch string) []string {
+	refs := make([]string, 0, len(tags)+1)
+	if branch != "" {
+		refs = append(refs, "refs/heads/"+branch)
+	}
+	for _, tag := range tags {
+		refs = append(refs, "refs/tags/"+tag)
+	}
+	return refs
 }
 
 type changedProject struct {
@@ -250,7 +297,8 @@ func bumpVersion(version string, kind BumpKind, preRelease bool) (string, error)
 	minor, _ := strconv.Atoi(nums[1])
 	patch, _ := strconv.Atoi(nums[2])
 
-	if preRelease && pre != "" {
+	switch {
+	case preRelease && pre != "":
 		rcParts := strings.Split(pre, ".")
 		if len(rcParts) == 2 {
 			if n, err := strconv.Atoi(rcParts[1]); err == nil {
@@ -261,7 +309,9 @@ func bumpVersion(version string, kind BumpKind, preRelease bool) (string, error)
 		} else {
 			pre = fmt.Sprintf("%s.1", rcParts[0])
 		}
-	} else {
+	case !preRelease && pre != "":
+		pre = ""
+	default:
 		switch kind {
 		case MajorBump:
 			major++

@@ -159,6 +159,8 @@ func CurrentBranch() (string, error) {
 }
 
 // PushRefsAtomic pushes the given fully-qualified refs to origin atomically.
+// Returns ErrNonFastForward when the push was rejected because the remote has
+// diverged.
 func PushRefsAtomic(refs []string) error {
 	if len(refs) == 0 {
 		return nil
@@ -167,7 +169,53 @@ func PushRefsAtomic(refs []string) error {
 	cmd := exec.Command("git", args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		if isNonFastForward(out) {
+			return fmt.Errorf("%w: %s", ErrNonFastForward, out)
+		}
 		return fmt.Errorf("git push --atomic failed: %s: %w", out, err)
+	}
+	return nil
+}
+
+// ErrNonFastForward indicates a push was rejected because the remote ref
+// advanced concurrently. The caller should fetch + rebase + retry.
+var ErrNonFastForward = fmt.Errorf("non-fast-forward")
+
+func isNonFastForward(out []byte) bool {
+	s := string(out)
+	return strings.Contains(s, "non-fast-forward") ||
+		strings.Contains(s, "fetch first") ||
+		strings.Contains(s, "[rejected]")
+}
+
+// FetchBranch fetches the given branch from origin into FETCH_HEAD.
+func FetchBranch(branch string) error {
+	cmd := exec.Command("git", "fetch", "origin", branch)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git fetch origin %s failed: %s: %w", branch, out, err)
+	}
+	return nil
+}
+
+// RebaseOnto rebases the current branch onto the given commit-ish and returns
+// the new HEAD.
+func RebaseOnto(onto string) (string, error) {
+	cmd := exec.Command("git", "rebase", onto)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		_ = exec.Command("git", "rebase", "--abort").Run()
+		return "", fmt.Errorf("git rebase %s failed: %s: %w", onto, out, err)
+	}
+	return GetHead()
+}
+
+// DeleteLocalTag removes a local tag. Used when recreating tags after a rebase.
+func DeleteLocalTag(tag string) error {
+	cmd := exec.Command("git", "tag", "-d", tag)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git tag -d %s failed: %s: %w", tag, out, err)
 	}
 	return nil
 }

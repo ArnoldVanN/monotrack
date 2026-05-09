@@ -144,11 +144,11 @@ var (
 			}
 
 			if !dry {
-				var extraRefs []string
+				pushBranch := ""
 				if commitChangelog && len(writtenPaths) > 0 {
-					extraRefs = []string{"refs/heads/" + branch}
+					pushBranch = branch
 				}
-				if err := bumper.Finalize(results, head, extraRefs); err != nil {
+				if err := bumper.Finalize(results, head, pushBranch); err != nil {
 					return err
 				}
 			}
@@ -163,6 +163,7 @@ var (
 							Type: string(r.Project.GetType()),
 						},
 						Version:       r.NewVersion,
+						OldVersion:    r.OldVersion,
 						BumpKind:      string(r.Kind),
 						ChangelogPath: changelogPaths[r.Project.Name()],
 					})
