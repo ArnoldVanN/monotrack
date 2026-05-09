@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/ArnoldVanN/monotrack/compare/v0.7.0...v0.7.1) (2026-05-09)
+
+
+### Bug Fixes
+
+* pre-release -&gt; release promotion, rebase on push error when remote changed ([dd63c4e](https://github.com/ArnoldVanN/monotrack/commit/dd63c4e11ab6edf5d13735402407db2880446581))
+
 ## [0.7.0](https://github.com/ArnoldVanN/monotrack/compare/v0.6.7...v0.7.0) (2026-05-09)
 
 
