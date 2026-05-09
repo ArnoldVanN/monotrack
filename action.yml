@@ -22,10 +22,6 @@ inputs:
     description: "CLI version. Defaults to latest"
     default: "latest"
     required: false
-  token:
-    description: "GitHub token used to push tags"
-    required: true
-
 outputs:
   output:
     value: ${{ steps.run.outputs.output }}
@@ -80,7 +76,6 @@ runs:
 
         set +e
         OUTPUT=$(docker run --rm \
-            -e GITHUB_TOKEN="${{ inputs.token }}" \
             -e GITHUB_REPOSITORY="${GITHUB_REPOSITORY}" \
             -v "$GITHUB_WORKSPACE":/repo \
             -w /repo \
@@ -89,14 +84,14 @@ runs:
             --base "$BASE" \
             --head "$HEAD" \
             --config "${{ inputs.config }}")
-
-        if [ $? -gt 0 ]; then
-            echo "::error::Monotrack command failed with exit code $?"
-            echo "$OUTPUT"
-            exit $EXIT_CODE
-        fi
-
+        EXIT_CODE=$?
         set -e
+
+        if [ "$EXIT_CODE" -ne 0 ]; then
+            echo "::error::Monotrack command failed with exit code $EXIT_CODE"
+            echo "$OUTPUT"
+            exit "$EXIT_CODE"
+        fi
 
         echo "Monotrack result: "
         echo "$OUTPUT"

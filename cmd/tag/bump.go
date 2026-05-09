@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -96,7 +97,7 @@ var (
 			writtenPaths := []string{}
 			if !noChangelog && len(entries) > 0 {
 				if dry {
-					fmt.Print(changelog.RenderForPrint(entries))
+					fmt.Fprint(os.Stderr, changelog.RenderForPrint(entries))
 				} else if singleChangelog {
 					path := "CHANGELOG.md"
 					if err := changelog.Combined(path, entries); err != nil {
@@ -123,12 +124,12 @@ var (
 			if commitChangelog && len(writtenPaths) > 0 {
 				msg := buildReleaseMessage(results)
 				if dry {
-					fmt.Println("--- would commit ---")
-					fmt.Println(msg)
-					fmt.Println("--- would push (atomic) ---")
-					fmt.Println("refs/heads/" + currentBranchForPrint())
+					fmt.Fprintln(os.Stderr, "--- would commit ---")
+					fmt.Fprintln(os.Stderr, msg)
+					fmt.Fprintln(os.Stderr, "--- would push (atomic) ---")
+					fmt.Fprintln(os.Stderr, "refs/heads/"+currentBranchForPrint())
 					for _, r := range results {
-						fmt.Printf("refs/tags/%s/%s\n", r.Project.Name(), r.NewVersion)
+						fmt.Fprintf(os.Stderr, "refs/tags/%s/%s\n", r.Project.Name(), r.NewVersion)
 					}
 				} else {
 					if err := git.AddFiles(writtenPaths); err != nil {

@@ -86,9 +86,9 @@ api/v0.0.2
 
 **Optional** CLI version. Defaults to latest
 
-### `token`
+### Authentication
 
-**Optional** GitHub token used to push tags. Required when using `tag bump`
+The action does not take a token input. Anything that needs to push (`tag bump`) authenticates using the credential `actions/checkout` persisted in the workspace's `.git/config`. To use a token other than the default `GITHUB_TOKEN` (e.g. a GitHub App token that can bypass branch protection), pass it on `actions/checkout`'s `token:` input — see the example below.
 
 ## Outputs
 
@@ -116,10 +116,9 @@ Perform operations on all projects including internal dependencies:
 Bump tags for projects that have changed between their latest tag and HEAD.
 
 > [!NOTE]
-> When using the default (auto-commit) behavior, the workflow needs an identity that can push to the protected branch. The default `GITHUB_TOKEN` cannot bypass branch protection. Use a GitHub App or PAT added to the branch's bypass list. For a protected branch where you don't want to grant bypass, pass `--no-commit-changelog` and tags alone are pushed.
+> When using the default (auto-commit) behavior, the workflow needs an identity that can push to the protected branch. The default `GITHUB_TOKEN` cannot bypass branch protection. Use a GitHub App (or PAT) added to the branch's bypass list, and pass its token to `actions/checkout` so the persisted git credential is the bypass identity. For a protected branch where you don't want to grant bypass, pass `--no-commit-changelog` and only tags get pushed (no branch push, so no protection conflict).
 
 ```yaml
-    # Required for tag creation
     permissions:
       contents: write
 
@@ -130,9 +129,22 @@ Bump tags for projects that have changed between their latest tag and HEAD.
           projects: ${{ steps.monotrack_json.outputs.projects }}
 
         steps:
+          # Mint a short-lived installation token for the release bot App
+          - uses: actions/create-github-app-token@v1
+            id: app-token
+            with:
+              app-id: ${{ vars.RELEASE_BOT_APP_ID }}
+              private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+
           - uses: actions/checkout@v5
             with:
-              fetch-depth: 0 # Required
+              fetch-depth: 0                                     # Required
+              token: ${{ steps.app-token.outputs.token }}        # The push credential
+
+          - name: Configure git user
+            run: |
+              git config user.name "release-bot[bot]"
+              git config user.email "${{ vars.RELEASE_BOT_APP_ID }}+release-bot[bot]@users.noreply.github.com"
 
           - name: Run Monotrack CLI
             id: monotrack
@@ -142,7 +154,6 @@ Bump tags for projects that have changed between their latest tag and HEAD.
               command: tag bump               # Optional, defaults to 'tag bump'
               args: -o json --pre-release     # Optional
               config: monotrack.yaml          # Optional
-              token: ${{ github.token }}
 
           - name: Output monotrack result
             id: monotrack_json
@@ -167,6 +178,8 @@ Bump tags for projects that have changed between their latest tag and HEAD.
           version: ${{ matrix.version }}
           type: ${{ matrix.type }}
 ```
+
+For a `--dry` invocation that only computes the project matrix and doesn't push (e.g., gating a build matrix before the real bump), the App token isn't needed — `actions/checkout` with the default `GITHUB_TOKEN` is fine.
 
 > [!TIP]  
 > For a full working example, see the [testing repo](https://github.com/ArnoldVanN/monotrack-testing)
