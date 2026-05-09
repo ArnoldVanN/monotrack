@@ -7,10 +7,10 @@ type Output struct {
 }
 
 type BumpOutput struct {
-	Output  `json:",inline"`
-	Version string `json:"version"`
-	// OldVersion string `json:"oldVersion"`
-	// NewVersion string `json:"newVersion"`
+	Output        `json:",inline"`
+	Version       string `json:"version"`
+	BumpKind      string `json:"bumpKind,omitempty"`
+	ChangelogPath string `json:"changelogPath,omitempty"`
 }
 
 // TODO: actual printer interface

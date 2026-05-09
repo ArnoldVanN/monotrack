@@ -114,6 +114,10 @@ Perform operations on all projects including internal dependencies:
 ```
 
 Bump tags for projects that have changed between their latest tag and HEAD.
+
+> [!NOTE]
+> When using the default (auto-commit) behavior, the workflow needs an identity that can push to the protected branch. The default `GITHUB_TOKEN` cannot bypass branch protection. Use a GitHub App or PAT added to the branch's bypass list. For a protected branch where you don't want to grant bypass, pass `--no-commit-changelog` and tags alone are pushed.
+
 ```yaml
     # Required for tag creation
     permissions:
@@ -208,14 +212,50 @@ api/v0.0.3
 > [!IMPORTANT]  
 > If no git tags matching a project specified in the config exist, `tag` commands will default to `<project>/v0.0.0`  
 
-Though the default is `patch` and there is **currently** no way to set version components for specific projects, you can specify a version component:
+By default, the bump kind for each project is derived from its [Conventional Commit](https://www.conventionalcommits.org/) history since its last tag:
+
+| Commit                               | Bump  |
+|--------------------------------------|-------|
+| `feat!: …` or `BREAKING CHANGE:` footer | major |
+| `feat: …`                            | minor |
+| `fix:`, `chore:`, `refactor:`, …     | patch |
+| Non-conventional message             | patch (excluded from changelog) |
+
+Commit-to-project mapping is determined by the existing file-diff logic — the conventional-commit *scope* is informational only and is not used to attribute commits to projects.
+
+To force a single component for every changed project (overriding the derived kind), pass `--component`:
 ```bash
 monotrack tag bump --component minor
 frontend/v0.1.0
 api/v0.1.0
 ```
-The way to work around this is to specify `--projects` and run the `bump` command for each group of projects that can be bumped with the same version component.  
-PR's to base version component on git commit messages are welcome...
+
+#### Changelogs
+Each bumped project gets a `CHANGELOG.md` written/prepended at its project path. Entries are grouped into **Breaking Changes**, **Features**, **Bug Fixes**, **Performance**, and **Other**. A project that was bumped purely because a dependency changed gets an "Updated internal dependencies" entry.
+
+By default, `tag bump` will:
+1. Write the changelog files.
+2. Stage *only* those files.
+3. Create a `chore(release): bump N project(s)` commit on top of `HEAD`.
+4. Tag the **new** commit (so the tag's tree contains its own changelog).
+5. Atomically push the branch and the new tags in one `git push --atomic`.
+
+```bash
+# default: write per-project changelogs, commit them, tag, and atomic-push
+monotrack tag bump
+
+# write a single combined CHANGELOG.md at the repo root, grouped by project
+monotrack tag bump --single-changelog
+
+# write changelog files but DON'T commit them; tag the original HEAD (legacy behavior)
+monotrack tag bump --no-commit-changelog
+
+# skip changelog generation (and committing) entirely
+monotrack tag bump --no-changelog
+```
+
+> [!IMPORTANT]
+> Monotrack ignores commits whose subject starts with `chore(release)` when deciding which projects need a bump. This prevents the auto-generated release commit from triggering an empty re-release on the next run. Avoid using that prefix for unrelated chore commits if you want them to count toward a bump.
 
 #### Output as json
 ```bash
@@ -241,7 +281,8 @@ shared-pkg/v0.0.1
 - [ ] Dynamically generate `monotrack.yaml`  
 - [ ] Keep track of versions/tags in the `.monotrack-manifest.yaml`  
 - [ ] Sort outputs alphabetically
-- [ ] Base version bump component on git commit message history? (aka make a release-please clone for monorepos)
+- [x] Base version bump component on git commit message history? (aka make a release-please clone for monorepos)
 - [ ] Add tests
 - [ ] Default action inputs.version to latest patch of current action major
 - [ ] For helm, update versions in each Chart.yaml `version`, and detect umbrella charts in order to update `dependencies[n].version` in the parent
+- [ ] Error if a `project.<name>.path` doesn't exist

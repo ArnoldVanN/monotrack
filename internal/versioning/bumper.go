@@ -2,13 +2,14 @@ package versioning
 
 import (
 	"fmt"
-	"maps"
 	"strconv"
 	"strings"
 
+	"github.com/arnoldvann/monotrack/internal/app"
 	"github.com/arnoldvann/monotrack/internal/git"
 	"github.com/arnoldvann/monotrack/internal/projects"
 	"github.com/arnoldvann/monotrack/internal/utils"
+	"github.com/arnoldvann/monotrack/internal/versioning/conventional"
 	"golang.org/x/mod/semver"
 )
 
@@ -20,6 +21,14 @@ const (
 	PatchBump BumpKind = "patch"
 )
 
+type BumpResult struct {
+	Project    projects.Project
+	OldVersion string
+	NewVersion string
+	Kind       BumpKind
+	Commits    []conventional.ParsedCommit
+}
+
 type VersionBumper struct {
 }
 
@@ -27,20 +36,21 @@ func NewBumper() VersionBumper {
 	return VersionBumper{}
 }
 
-// Returns a map of projects that have changed, to bumped versions. Defaults to v0.0.1 for projects that don't have a tag
+// BumpProjects bumps versions for projects that have changed since their last
+// tag. If kindOverride is non-nil, it is applied uniformly. Otherwise the bump
+// kind for each project is derived from its conventional commit history.
+// Tags are not created or pushed; call Finalize after.
 func (b *VersionBumper) BumpProjects(
 	p map[string]projects.Project,
-	kind BumpKind,
+	kindOverride *BumpKind,
 	preRelease bool,
 	head string,
-	dry bool,
-) (map[string]string, error) {
+) ([]BumpResult, error) {
 	projectToTags, err := git.GetTagsForProjects(p)
 	if err != nil {
 		return nil, err
 	}
 
-	// Set default tags if they dont exist
 	for name, project := range p {
 		if _, ok := projectToTags[project]; !ok {
 			projectToTags[project] = []string{name + "/v0.0.0"}
@@ -52,44 +62,99 @@ func (b *VersionBumper) BumpProjects(
 		return nil, err
 	}
 
-	// Diff projects with existing tags only
 	zeroTagProjects := make(map[string]string)
 	for proj, t := range projectToLatest {
-		// TODO: if it's a preRelease, will have to do extra checks here
 		if strings.HasPrefix(t, "v0.0.0") {
 			zeroTagProjects[proj] = t
 			delete(projectToLatest, proj)
 		}
 	}
 
-	changedProjNameToVersion, err := getChangedProjectsVersions(projectToLatest, head)
+	changed, err := getChangedProjectsVersions(projectToLatest, head)
 	if err != nil {
 		return nil, err
 	}
 
-	maps.Copy(changedProjNameToVersion, zeroTagProjects)
-
-	projectsToBumped, err := bump(changedProjNameToVersion, kind, preRelease)
-	if err != nil {
-		return nil, err
+	for name, version := range zeroTagProjects {
+		changed[name] = changedProject{version: version, base: ""}
 	}
 
-	if !dry {
-		if err := pushTags(projectsToBumped, head); err != nil {
+	results := make([]BumpResult, 0, len(changed))
+	for name, info := range changed {
+		proj, ok := p[name]
+		if !ok {
+			return nil, fmt.Errorf("invalid project name: %q", name)
+		}
+
+		commits, err := commitsForProject(info.base, head, proj)
+		if err != nil {
 			return nil, err
+		}
+		parsed := parseAll(commits)
+
+		var kind BumpKind
+		if kindOverride != nil {
+			kind = *kindOverride
+		} else {
+			kind = deriveKind(parsed)
+		}
+
+		newVer, err := bumpVersion(info.version, kind, preRelease)
+		if err != nil {
+			return nil, err
+		}
+
+		results = append(results, BumpResult{
+			Project:    proj,
+			OldVersion: info.version,
+			NewVersion: newVer,
+			Kind:       kind,
+			Commits:    parsed,
+		})
+	}
+
+	return results, nil
+}
+
+// Finalize creates and pushes tags for the bumped projects, atomically with
+// any extra refs (e.g. a branch ref when also pushing a release commit).
+func (b *VersionBumper) Finalize(results []BumpResult, head string, extraRefs []string) error {
+	if len(results) == 0 {
+		return nil
+	}
+
+	tagRefs := make([]string, 0, len(results))
+	tags := make([]string, 0, len(results))
+	for _, r := range results {
+		tag := fmt.Sprintf("%s/%s", r.Project.Name(), r.NewVersion)
+		tags = append(tags, tag)
+		tagRefs = append(tagRefs, "refs/tags/"+tag)
+
+		exists, err := git.TagExistsOnRemote(tag)
+		if err != nil {
+			return fmt.Errorf("checking remote tag %q failed: %w", tag, err)
+		}
+		if exists {
+			return fmt.Errorf("remote tag already exists: %s", tag)
 		}
 	}
 
-	return projectsToBumped, nil
+	for _, tag := range tags {
+		if err := git.CreateTag(tag, fmt.Sprintf("Release %s", tag), head); err != nil {
+			return err
+		}
+	}
+
+	return git.PushRefsAtomic(append(extraRefs, tagRefs...))
 }
 
-/*
-Get changed projects.
-Expects a map of projects to current versions.
-Returns a map of projects that have changed, mapped to their respective versions
-*/
-func getChangedProjectsVersions(p map[string]string, head string) (map[string]string, error) {
-	changedProjects := make(map[string]string)
+type changedProject struct {
+	version string
+	base    string
+}
+
+func getChangedProjectsVersions(p map[string]string, head string) (map[string]changedProject, error) {
+	changedProjects := make(map[string]changedProject)
 
 	for proj, version := range p {
 		base, err := git.GetBase(proj + "/" + version)
@@ -103,25 +168,62 @@ func getChangedProjectsVersions(p map[string]string, head string) (map[string]st
 		}
 
 		if changed[proj] {
-			changedProjects[proj] = version
+			changedProjects[proj] = changedProject{version: version, base: base}
 		}
 	}
 
 	return changedProjects, nil
 }
 
-func bump(t map[string]string, kind BumpKind, preRelease bool) (map[string]string, error) {
-	out := make(map[string]string, len(t))
-
-	for p, v := range t {
-		ver, err := bumpVersion(v, kind, preRelease)
-		if err != nil {
-			return nil, err
-		}
-		out[p] = ver
+func commitsForProject(base, head string, proj projects.Project) ([]git.RawCommit, error) {
+	if base == "" {
+		return nil, nil
 	}
 
-	return out, nil
+	var paths []string
+	if cfg, ok := app.State.Config.Projects[proj.Name()]; ok && cfg.Path != "" && cfg.Path != "." {
+		paths = []string{cfg.Path}
+	}
+
+	raw, err := git.LogBetween(base, head, paths)
+	if err != nil {
+		return nil, err
+	}
+
+	filtered := raw[:0]
+	for _, c := range raw {
+		if isReleaseCommit(c.Message) {
+			continue
+		}
+		filtered = append(filtered, c)
+	}
+	return filtered, nil
+}
+
+// isReleaseCommit returns true for commits monotrack itself authored when
+// auto-committing a changelog, so they don't trigger empty re-releases.
+func isReleaseCommit(message string) bool {
+	subject, _, _ := strings.Cut(message, "\n")
+	return strings.HasPrefix(strings.TrimSpace(subject), "chore(release)")
+}
+
+func parseAll(raw []git.RawCommit) []conventional.ParsedCommit {
+	out := make([]conventional.ParsedCommit, 0, len(raw))
+	for _, r := range raw {
+		out = append(out, conventional.Parse(r.Hash, r.Message))
+	}
+	return out
+}
+
+func deriveKind(commits []conventional.ParsedCommit) BumpKind {
+	switch conventional.DeriveBumpKind(commits) {
+	case conventional.KindMajor:
+		return MajorBump
+	case conventional.KindMinor:
+		return MinorBump
+	default:
+		return PatchBump
+	}
 }
 
 // TODO: custom prefixes and separators
@@ -132,7 +234,6 @@ func bumpVersion(version string, kind BumpKind, preRelease bool) (string, error)
 
 	v := strings.TrimPrefix(version, "v")
 
-	// Split core and prerelease
 	parts := strings.SplitN(v, "-", 2)
 	core := parts[0]
 	pre := ""
@@ -150,7 +251,6 @@ func bumpVersion(version string, kind BumpKind, preRelease bool) (string, error)
 	patch, _ := strconv.Atoi(nums[2])
 
 	if preRelease && pre != "" {
-		// We are already on a prerelease, bump prerelease number
 		rcParts := strings.Split(pre, ".")
 		if len(rcParts) == 2 {
 			if n, err := strconv.Atoi(rcParts[1]); err == nil {
@@ -162,7 +262,6 @@ func bumpVersion(version string, kind BumpKind, preRelease bool) (string, error)
 			pre = fmt.Sprintf("%s.1", rcParts[0])
 		}
 	} else {
-		// Bump main version
 		switch kind {
 		case MajorBump:
 			major++
@@ -177,7 +276,6 @@ func bumpVersion(version string, kind BumpKind, preRelease bool) (string, error)
 			return "", fmt.Errorf("unknown bump kind: %s", kind)
 		}
 
-		// Start prerelease if requested
 		if preRelease {
 			pre = "rc.1"
 		} else {
@@ -191,38 +289,4 @@ func bumpVersion(version string, kind BumpKind, preRelease bool) (string, error)
 	}
 
 	return newVersion, nil
-}
-
-func pushTags(tags map[string]string, head string) error {
-	if len(tags) == 0 {
-		return nil
-	}
-
-	fullTags := make([]string, 0, len(tags))
-	for project, version := range tags {
-		tag := fmt.Sprintf("%s/%s", project, version)
-		fullTags = append(fullTags, tag)
-
-		// TODO: do this concurrently
-		exists, err := git.TagExistsOnRemote(tag)
-		if err != nil {
-			return fmt.Errorf("checking remote tag %q failed: %w", tag, err)
-		}
-		if exists {
-			return fmt.Errorf("remote tag already exists: %s", tag)
-		}
-	}
-
-	for _, tag := range fullTags {
-		err := git.CreateTag(tag, fmt.Sprintf("Release %s", tag), head)
-		if err != nil {
-			return err
-		}
-	}
-
-	if err := git.PushTags(fullTags); err != nil {
-		return err
-	}
-
-	return nil
 }

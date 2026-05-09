@@ -85,26 +85,6 @@ func filterTagsForProjects(tags []string, proj map[string]projects.Project) map[
 	return filteredTags
 }
 
-func PushTags(tags []string) error {
-	args := append([]string{"push", "origin"}, makeRefs(tags)...)
-	cmd := exec.Command("git", args...)
-
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("error pushing tags: %s, %w", string(out), err)
-	}
-
-	return nil
-}
-
-func makeRefs(tags []string) []string {
-	refs := make([]string, len(tags))
-	for i, tag := range tags {
-		refs[i] = fmt.Sprintf("refs/tags/%s", tag)
-	}
-	return refs
-}
-
 func CreateTag(tag, message, commit string) error {
 	cmd := exec.Command("git", "tag", "-a", tag, "-m", message, commit)
 
@@ -127,6 +107,71 @@ func TagExistsOnRemote(tag string) (bool, error) {
 	return len(bytes.TrimSpace(out)) > 0, nil
 }
 
+func AddFiles(paths []string) error {
+	if len(paths) == 0 {
+		return nil
+	}
+	repo, err := GetRepoRoot()
+	if err != nil {
+		return err
+	}
+	args := append([]string{"-C", repo, "add", "--"}, paths...)
+	cmd := exec.Command("git", args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git add failed: %w: %s", err, out)
+	}
+	return nil
+}
+
+// CommitPaths commits only the given paths with the provided message. Returns
+// the resulting HEAD SHA. Unrelated staged/unstaged changes are preserved.
+func CommitPaths(message string, paths []string) (string, error) {
+	if len(paths) == 0 {
+		return "", fmt.Errorf("CommitPaths called with no paths")
+	}
+	repo, err := GetRepoRoot()
+	if err != nil {
+		return "", err
+	}
+	args := append([]string{"-C", repo, "commit", "-m", message, "--"}, paths...)
+	cmd := exec.Command("git", args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("git commit failed: %w: %s", err, out)
+	}
+	return GetHead()
+}
+
+// CurrentBranch returns the checked-out branch name, or "" when on a detached
+// HEAD.
+func CurrentBranch() (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("git rev-parse --abbrev-ref HEAD failed: %w: %s", err, out)
+	}
+	name := strings.TrimSpace(string(out))
+	if name == "HEAD" {
+		return "", nil
+	}
+	return name, nil
+}
+
+// PushRefsAtomic pushes the given fully-qualified refs to origin atomically.
+func PushRefsAtomic(refs []string) error {
+	if len(refs) == 0 {
+		return nil
+	}
+	args := append([]string{"push", "--atomic", "origin"}, refs...)
+	cmd := exec.Command("git", args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git push --atomic failed: %s: %w", out, err)
+	}
+	return nil
+}
+
 func GetHead() (string, error) {
 	cmd := exec.Command("git", "rev-parse", "HEAD")
 
@@ -136,6 +181,55 @@ func GetHead() (string, error) {
 	}
 
 	return strings.TrimSpace(string(out)), nil
+}
+
+type RawCommit struct {
+	Hash    string
+	Message string
+}
+
+// LogBetween returns commits in base..head that touched any of the given paths.
+// If paths is empty, returns all commits in the range.
+func LogBetween(base, head string, paths []string) ([]RawCommit, error) {
+	repo, err := GetRepoRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	args := []string{"-C", repo, "log", fmt.Sprintf("%s..%s", base, head), "--format=%H%x1f%B%x1e"}
+	if len(paths) > 0 {
+		args = append(args, "--")
+		args = append(args, paths...)
+	}
+
+	cmd := exec.Command("git", args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("git log failed: %w: %s", err, out)
+	}
+
+	trimmed := strings.TrimSpace(strings.Trim(string(out), "\x1e\n"))
+	if trimmed == "" {
+		return nil, nil
+	}
+
+	var commits []RawCommit
+	for rec := range strings.SplitSeq(trimmed, "\x1e") {
+		rec = strings.TrimSpace(rec)
+		if rec == "" {
+			continue
+		}
+		parts := strings.SplitN(rec, "\x1f", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		commits = append(commits, RawCommit{
+			Hash:    strings.TrimSpace(parts[0]),
+			Message: strings.TrimSpace(parts[1]),
+		})
+	}
+
+	return commits, nil
 }
 
 func GetBase(tag string) (string, error) {
