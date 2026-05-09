@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.0](https://github.com/ArnoldVanN/monotrack/compare/v0.6.7...v0.7.0) (2026-05-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* prevent json output parsing err by outputting debug to stderr,
+
+### Features
+
+* autodetect semver component to bump, write changelogs ([7787397](https://github.com/ArnoldVanN/monotrack/commit/7787397ad4c4a16a19995516b48fcb93f92ea3ab))
+
+
+### Bug Fixes
+
+* prevent json output parsing err by outputting debug to stderr, ([aa8213c](https://github.com/ArnoldVanN/monotrack/commit/aa8213cefb4df08d7f06bb37a475c483c9ce7497))
+
 ## [0.6.7](https://github.com/ArnoldVanN/monotrack/compare/v0.6.6...v0.6.7) (2026-02-02)
 
 
