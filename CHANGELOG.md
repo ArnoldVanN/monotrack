@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.0](https://github.com/ArnoldVanN/monotrack/compare/v0.7.1...v0.8.0) (2026-05-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* add PR-based release flow, added customizability for tags and
+
+### Features
+
+* add PR-based release flow, added customizability for tags and ([72da8e7](https://github.com/ArnoldVanN/monotrack/commit/72da8e74a2ee719621c9544046e2ddddb0409bf4))
+
 ## [0.7.1](https://github.com/ArnoldVanN/monotrack/compare/v0.7.0...v0.7.1) (2026-05-09)
 
 
