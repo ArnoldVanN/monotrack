@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.9.0](https://github.com/ArnoldVanN/monotrack/compare/v0.8.3...v0.9.0) (2026-05-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* promote pre-release tags when -p not specified on tag bump
+
+### Features
+
+* promote pre-release tags when -p not specified on tag bump ([1185355](https://github.com/ArnoldVanN/monotrack/commit/11853555a481b65470aee337705f10b1b1e3dace))
+
 ## [0.8.3](https://github.com/ArnoldVanN/monotrack/compare/v0.8.2...v0.8.3) (2026-05-21)
 
 
