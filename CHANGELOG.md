@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.3](https://github.com/ArnoldVanN/monotrack/compare/v0.8.2...v0.8.3) (2026-05-21)
+
+
+### Bug Fixes
+
+* switch to downloading prebuilt binary in action ([87ffa2a](https://github.com/ArnoldVanN/monotrack/commit/87ffa2abd4282a9c1adc319ca543811ec2adc592))
+
 ## [0.8.2](https://github.com/ArnoldVanN/monotrack/compare/v0.8.1...v0.8.2) (2026-05-21)
 
 
