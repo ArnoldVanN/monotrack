@@ -181,6 +181,95 @@ func prepend(path, block string) error {
 	return os.WriteFile(path, []byte(content), 0o644)
 }
 
+// PRBody renders a release PR body covering multiple projects. Breaking
+// changes from all projects are collected into a single top-level section
+// (with per-project subsections); each project then gets its own section
+// containing the remaining changes.
+func PRBody(entries []Entry) string {
+	sorted := make([]Entry, len(entries))
+	copy(sorted, entries)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Project.Name() < sorted[j].Project.Name()
+	})
+
+	var b strings.Builder
+
+	type projBreaking struct {
+		name    string
+		commits []conventional.ParsedCommit
+	}
+	var allBreaking []projBreaking
+	for _, e := range sorted {
+		var breaking []conventional.ParsedCommit
+		for _, c := range e.Commits {
+			if c.Type == conventional.TypeUnknown {
+				continue
+			}
+			if c.Breaking {
+				breaking = append(breaking, c)
+			}
+		}
+		if len(breaking) > 0 {
+			allBreaking = append(allBreaking, projBreaking{e.Project.Name(), breaking})
+		}
+	}
+
+	if len(allBreaking) > 0 {
+		b.WriteString("## ⚠ BREAKING CHANGES\n\n")
+		for _, pb := range allBreaking {
+			fmt.Fprintf(&b, "### %s\n\n", pb.name)
+			for _, c := range pb.commits {
+				b.WriteString(renderLine(c))
+			}
+			b.WriteString("\n")
+		}
+	}
+
+	for _, e := range sorted {
+		dateStr := e.Date.Format("2006-01-02")
+		fmt.Fprintf(&b, "## %s %s (%s)\n\n", e.Project.Name(), e.NewVersion, dateStr)
+
+		byType := make(map[conventional.CommitType][]conventional.ParsedCommit)
+		conventionalCount := 0
+		for _, c := range e.Commits {
+			if c.Type == conventional.TypeUnknown {
+				continue
+			}
+			conventionalCount++
+			if c.Breaking {
+				continue
+			}
+			byType[c.Type] = append(byType[c.Type], c)
+		}
+
+		nonBreakingRendered := false
+		for _, s := range sections {
+			var lines []conventional.ParsedCommit
+			for _, t := range s.types {
+				lines = append(lines, byType[t]...)
+			}
+			if len(lines) == 0 {
+				continue
+			}
+			nonBreakingRendered = true
+			fmt.Fprintf(&b, "### %s\n\n", s.title)
+			for _, c := range lines {
+				b.WriteString(renderLine(c))
+			}
+			b.WriteString("\n")
+		}
+
+		if conventionalCount == 0 {
+			b.WriteString("### Other\n\n- Updated internal dependencies\n\n")
+		} else if !nonBreakingRendered {
+			// only breaking commits — point readers to the section above
+			b.WriteString("_See breaking changes above._\n\n")
+		}
+	}
+
+	return b.String()
+}
+
 // RenderForPrint returns a stdout-friendly representation for dry runs.
 func RenderForPrint(entries []Entry) string {
 	var b strings.Builder

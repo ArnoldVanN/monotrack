@@ -296,6 +296,8 @@ func buildPRTitleBody(results []versioning.BumpResult) (string, string) {
 	for _, r := range sorted {
 		fmt.Fprintf(&body, "| %s | %s | %s |\n", r.Project.Name(), r.OldVersion, r.NewVersion)
 	}
+	body.WriteString("\n")
+	body.WriteString(changelog.PRBody(buildEntries(sorted)))
 	body.WriteString("\nMerge this PR to publish the listed versions. To override changelog wording for a commit, edit the source commit/PR body with a `BEGIN_COMMIT_OVERRIDE` ... `END_COMMIT_OVERRIDE` block before merging.\n")
 	return title, body.String()
 }
