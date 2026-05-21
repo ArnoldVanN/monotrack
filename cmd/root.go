@@ -14,7 +14,6 @@ import (
 
 var (
 	version string
-	commit  string
 	date    string
 
 	cfgFile  string
@@ -42,7 +41,7 @@ var (
 			}
 
 			if shallow {
-				return fmt.Errorf("Shallow repository detected. Fetch full history before running.")
+				return fmt.Errorf("shallow repository detected, fetch full history before running")
 			}
 
 			cfg, err := config.LoadConfig(cfgFile)
@@ -84,9 +83,8 @@ func EnsureRepoRoot() error {
 	return nil
 }
 
-func Execute(v string, c string, d string) error {
+func Execute(v string, _ string, d string) error {
 	version = v
-	commit = c
 	date = d
 	return rootCmd.Execute()
 }

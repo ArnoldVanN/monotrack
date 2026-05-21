@@ -42,7 +42,7 @@ func TestRender_SectionsAndOrdering(t *testing.T) {
 
 	bIdx := strings.Index(out, "Breaking Changes")
 	fIdx := strings.Index(out, "Features")
-	if !(bIdx < fIdx) {
+	if bIdx >= fIdx {
 		t.Error("breaking changes should appear before features")
 	}
 }

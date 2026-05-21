@@ -1,6 +1,10 @@
 package main
 
-import "github.com/arnoldvann/monotrack/cmd"
+import (
+	"os"
+
+	"github.com/arnoldvann/monotrack/cmd"
+)
 
 var (
 	version = "dev"
@@ -9,5 +13,7 @@ var (
 )
 
 func main() {
-	cmd.Execute(version, commit, date)
+	if err := cmd.Execute(version, commit, date); err != nil {
+		os.Exit(1)
+	}
 }

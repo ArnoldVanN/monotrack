@@ -198,7 +198,6 @@ func (b *VersionBumper) Finalize(results []BumpResult, head string, branch strin
 		if err := createTagsAt(tags, newHead); err != nil {
 			return err
 		}
-		head = newHead
 	}
 }
 

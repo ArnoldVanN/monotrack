@@ -31,38 +31,3 @@ func LoadConfig(configPath string) (*projects.Config, error) {
 	return &cfg, nil
 }
 
-// # NOTE : probably not needed
-func detectCycles(projects map[string]projects.ProjectConfig) error {
-	visited := map[string]bool{}
-	stack := map[string]bool{}
-
-	var visit func(string) error
-	visit = func(n string) error {
-		if stack[n] {
-			return fmt.Errorf("dependency cycle detected at %s", n)
-		}
-		if visited[n] {
-			return nil
-		}
-
-		visited[n] = true
-		stack[n] = true
-
-		for _, dep := range projects[n].DependsOn {
-			if err := visit(string(dep)); err != nil {
-				return err
-			}
-		}
-
-		stack[n] = false
-		return nil
-	}
-
-	for name := range projects {
-		if err := visit(name); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
