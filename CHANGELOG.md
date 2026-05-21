@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/ArnoldVanN/monotrack/compare/v0.8.0...v0.8.1) (2026-05-21)
+
+
+### Features
+
+* improve PR body ([ee38f6c](https://github.com/ArnoldVanN/monotrack/commit/ee38f6ccbe57ab5b677df772843c6dc0ecb7029e))
+
 ## [0.8.0](https://github.com/ArnoldVanN/monotrack/compare/v0.7.1...v0.8.0) (2026-05-21)
 
 
