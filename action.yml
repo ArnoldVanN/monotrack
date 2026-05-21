@@ -73,8 +73,13 @@ runs:
         VERSION="${{ inputs.version }}"
         if [ -z "$VERSION" ]; then
           # Resolve to the moving v<major> docker tag based on how the action was invoked.
-          # GITHUB_ACTION_REF is the ref the caller used (e.g. v0.7.3, v0, main, or a SHA).
+          # GITHUB_ACTION_REF is the ref the caller used (e.g. v0.7.3, v0, main, or a SHA),
+          # but it is unreliable for composite actions — fall back to parsing the trailing
+          # ref segment from GITHUB_ACTION_PATH (e.g. /…/_actions/owner/repo/<ref>).
           REF="${GITHUB_ACTION_REF:-}"
+          if [ -z "$REF" ] && [ -n "${GITHUB_ACTION_PATH:-}" ]; then
+            REF="$(basename "$GITHUB_ACTION_PATH")"
+          fi
           if [[ "$REF" =~ ^v([0-9]+)(\.[0-9]+)?(\.[0-9]+)?$ ]]; then
             VERSION="v${BASH_REMATCH[1]}"
           else
