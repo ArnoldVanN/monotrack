@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2](https://github.com/ArnoldVanN/monotrack/compare/v0.8.1...v0.8.2) (2026-05-21)
+
+
+### Bug Fixes
+
+* action.yaml ACTION_REF possibly undefined ([e221f68](https://github.com/ArnoldVanN/monotrack/commit/e221f68c338c2825fee7d305d7dbaa924e718155))
+
 ## [0.8.1](https://github.com/ArnoldVanN/monotrack/compare/v0.8.0...v0.8.1) (2026-05-21)
 
 
