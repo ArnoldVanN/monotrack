@@ -19,7 +19,7 @@ inputs:
     description: "Name of the configuration file"
     required: false
   version:
-    description: "CLI version (docker tag). When unset, defaults to the latest patch of the action's major (e.g. `v0` when called as `@v0` or `@v0.7.3`). Errors if the action ref isn't semver-shaped — set explicitly when pinning to a branch or SHA."
+    description: "CLI version (release tag, e.g. `v0.8.2`). When unset, defaults to the latest release matching the action's major (e.g. `v0` when called as `@v0` or `@v0.8.3`). Errors if the action ref isn't semver-shaped — set explicitly when pinning to a branch or SHA."
     default: ""
     required: false
 outputs:
@@ -37,6 +37,8 @@ runs:
     - name: Run Monotrack CLI
       id: run
       shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
 
@@ -72,34 +74,78 @@ runs:
 
         VERSION="${{ inputs.version }}"
         if [ -z "$VERSION" ]; then
-          # Resolve to the moving v<major> docker tag based on how the action was invoked.
-          # GITHUB_ACTION_REF is the ref the caller used (e.g. v0.7.3, v0, main, or a SHA),
-          # but it is unreliable for composite actions — fall back to parsing the trailing
-          # ref segment from GITHUB_ACTION_PATH (e.g. /…/_actions/owner/repo/<ref>).
+          # GITHUB_ACTION_REF is unreliable for composite actions — fall back to parsing
+          # the trailing ref segment from GITHUB_ACTION_PATH (e.g. /…/_actions/owner/repo/<ref>).
           REF="${GITHUB_ACTION_REF:-}"
           if [ -z "$REF" ] && [ -n "${GITHUB_ACTION_PATH:-}" ]; then
             REF="$(basename "$GITHUB_ACTION_PATH")"
           fi
-          if [[ "$REF" =~ ^v([0-9]+)(\.[0-9]+)?(\.[0-9]+)?$ ]]; then
-            VERSION="v${BASH_REMATCH[1]}"
+          if [[ "$REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            VERSION="$REF"
+          elif [[ "$REF" =~ ^v([0-9]+)(\.[0-9]+)?$ ]]; then
+            # Major (or major.minor) — resolve to the latest matching release tag.
+            MAJOR="${BASH_REMATCH[1]}"
+            VERSION="$(gh api "repos/arnoldvann/monotrack/releases?per_page=100" \
+              --jq "[.[] | select(.draft==false) | select(.prerelease==false) | .tag_name | select(startswith(\"v${MAJOR}.\"))] | .[0] // empty")"
+            if [ -z "$VERSION" ]; then
+              echo "::error::Could not find a published monotrack release matching v${MAJOR}.* on GitHub."
+              exit 1
+            fi
           else
-            echo "::error::Could not derive a default monotrack version from GITHUB_ACTION_REF=\"$REF\". Pin the action to a tag like @v0 or @v0.7.3, or set the \`version\` input explicitly."
+            echo "::error::Could not derive a default monotrack version from ref \"$REF\". Pin the action to a tag like @v0 or @v0.7.3, or set the \`version\` input explicitly."
             exit 1
           fi
+        fi
+
+        # Map runner OS/arch to goreleaser archive names (monotrack_<Os>_<Arch>.<ext>).
+        case "$RUNNER_OS" in
+          Linux)   OS="Linux"; EXT="tar.gz" ;;
+          macOS)   OS="Darwin"; EXT="tar.gz" ;;
+          Windows) OS="Windows"; EXT="zip" ;;
+          *) echo "::error::Unsupported runner OS: $RUNNER_OS"; exit 1 ;;
+        esac
+        case "$RUNNER_ARCH" in
+          X64)   ARCH="x86_64" ;;
+          ARM64) ARCH="arm64" ;;
+          *) echo "::error::Unsupported runner arch: $RUNNER_ARCH"; exit 1 ;;
+        esac
+
+        ASSET="monotrack_${OS}_${ARCH}.${EXT}"
+        INSTALL_DIR="$RUNNER_TEMP/monotrack-${VERSION}"
+        BIN="$INSTALL_DIR/monotrack"
+        [ "$RUNNER_OS" = "Windows" ] && BIN="$BIN.exe"
+
+        if [ ! -x "$BIN" ]; then
+          echo "Downloading $ASSET from release $VERSION"
+          mkdir -p "$INSTALL_DIR"
+          gh release download "$VERSION" \
+            --repo arnoldvann/monotrack \
+            --pattern "$ASSET" \
+            --dir "$INSTALL_DIR"
+          if [ "$EXT" = "zip" ]; then
+            unzip -q "$INSTALL_DIR/$ASSET" -d "$INSTALL_DIR"
+          else
+            tar -xzf "$INSTALL_DIR/$ASSET" -C "$INSTALL_DIR"
+          fi
+          chmod +x "$BIN"
         fi
 
         echo "CLI Arguments: ${CLI_ARGS[*]}"
         echo "Using Monotrack version: $VERSION"
         echo "Using config file: ${{ inputs.config }}"
 
+        # Mirror the docker entrypoint: trust the workspace and set a default git identity
+        # so monotrack can create commits/tags. Use --add so we don't clobber prior config.
+        git config --global --add safe.directory "$GITHUB_WORKSPACE" || true
+        if [ -z "$(git config --global user.name || true)" ]; then
+          git config --global user.name "github-actions[bot]"
+        fi
+        if [ -z "$(git config --global user.email || true)" ]; then
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        fi
+
         set +e
-        OUTPUT=$(docker run --rm \
-            -e GITHUB_REPOSITORY="${GITHUB_REPOSITORY}" \
-            -e GITHUB_TOKEN="${GITHUB_TOKEN:-}" \
-            -e GH_TOKEN="${GITHUB_TOKEN:-}" \
-            -v "$GITHUB_WORKSPACE":/repo \
-            -w /repo \
-            ghcr.io/arnoldvann/monotrack:$VERSION \
+        OUTPUT=$(cd "$GITHUB_WORKSPACE" && "$BIN" \
             "${CLI_ARGS[@]}" \
             --base "$BASE" \
             --head "$HEAD" \
