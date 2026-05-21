@@ -12,6 +12,10 @@ type BumpOutput struct {
 	OldVersion    string `json:"oldVersion,omitempty"`
 	BumpKind      string `json:"bumpKind,omitempty"`
 	ChangelogPath string `json:"changelogPath,omitempty"`
+	// Status is "proposed" (release PR opened, no tags yet) or "released"
+	// (tags created and pushed).
+	Status string `json:"status,omitempty"`
+	PRUrl  string `json:"prUrl,omitempty"`
 }
 
 // TODO: actual printer interface

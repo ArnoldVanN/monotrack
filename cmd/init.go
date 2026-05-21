@@ -55,7 +55,8 @@ func defaultConfigContents() []byte {
 }
 
 func defaultManifestContents() []byte {
-	return []byte(`projects:
-  example: TODO
+	return []byte(`# Managed by monotrack.
+# Commit this file so CI can read it across runs.
+pending: []
 `)
 }

@@ -58,7 +58,7 @@ func IsShallowRepo() (bool, error) {
 	return b, nil
 }
 
-func GetTagsForProjects(p map[string]projects.Project) (map[projects.Project][]string, error) {
+func GetTagsForProjects(cfg *projects.Config, p map[string]projects.Project) (map[projects.Project][]string, error) {
 	cmd := exec.Command("git", "tag", "--list")
 
 	out, err := cmd.CombinedOutput()
@@ -67,21 +67,20 @@ func GetTagsForProjects(p map[string]projects.Project) (map[projects.Project][]s
 	}
 
 	allTags := strings.Split(strings.TrimSpace(string(out)), "\n")
-	filtered := filterTagsForProjects(allTags, p)
+	filtered := filterTagsForProjects(cfg, allTags, p)
 
 	return filtered, nil
 }
 
-func filterTagsForProjects(tags []string, proj map[string]projects.Project) map[projects.Project][]string {
+func filterTagsForProjects(cfg *projects.Config, tags []string, proj map[string]projects.Project) map[projects.Project][]string {
 	filteredTags := make(map[projects.Project][]string, 0)
 	for _, p := range proj {
 		for _, t := range tags {
-			if strings.HasPrefix(t, p.Name()+"/") {
+			if _, ok := cfg.MatchTag(t, p.Name()); ok {
 				filteredTags[p] = append(filteredTags[p], t)
 			}
 		}
 	}
-
 	return filteredTags
 }
 
@@ -188,6 +187,53 @@ func isNonFastForward(out []byte) bool {
 		strings.Contains(s, "[rejected]")
 }
 
+// HasUncommittedChanges reports whether the working tree or index differs
+// from HEAD.
+func HasUncommittedChanges() (bool, error) {
+	cmd := exec.Command("git", "status", "--porcelain")
+	out, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("git status failed: %w", err)
+	}
+	return len(bytes.TrimSpace(out)) > 0, nil
+}
+
+// CheckoutBranchFrom creates or resets branch at startPoint and switches to
+// it (`git checkout -B`).
+func CheckoutBranchFrom(branch, startPoint string) error {
+	cmd := exec.Command("git", "checkout", "-B", branch, startPoint)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git checkout -B %s %s failed: %s: %w", branch, startPoint, out, err)
+	}
+	return nil
+}
+
+func CheckoutBranch(branch string) error {
+	cmd := exec.Command("git", "checkout", branch)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git checkout %s failed: %s: %w", branch, out, err)
+	}
+	return nil
+}
+
+func ForcePushBranch(branch, localRef string) error {
+	if branch == "" {
+		return fmt.Errorf("ForcePushBranch: empty branch")
+	}
+	ref := localRef
+	if ref == "" {
+		ref = "HEAD"
+	}
+	cmd := exec.Command("git", "push", "--force", "origin", fmt.Sprintf("%s:refs/heads/%s", ref, branch))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git push --force origin %s failed: %s: %w", branch, out, err)
+	}
+	return nil
+}
+
 // FetchBranch fetches the given branch from origin into FETCH_HEAD.
 func FetchBranch(branch string) error {
 	cmd := exec.Command("git", "fetch", "origin", branch)
@@ -218,6 +264,15 @@ func DeleteLocalTag(tag string) error {
 		return fmt.Errorf("git tag -d %s failed: %s: %w", tag, out, err)
 	}
 	return nil
+}
+
+func RemoteURL(remote string) (string, error) {
+	cmd := exec.Command("git", "remote", "get-url", remote)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("git remote get-url %s failed: %s: %w", remote, out, err)
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 func GetHead() (string, error) {

@@ -41,6 +41,68 @@ func TestParse(t *testing.T) {
 	}
 }
 
+func TestParseAll_NoOverride(t *testing.T) {
+	got := ParseAll("abc1234", "feat: thing")
+	if len(got) != 1 {
+		t.Fatalf("len = %d, want 1", len(got))
+	}
+	if got[0].Type != TypeFeat {
+		t.Errorf("type = %q, want feat", got[0].Type)
+	}
+}
+
+func TestParseAll_OverrideBlock(t *testing.T) {
+	raw := `chore: original boring subject
+
+Some body text.
+
+BEGIN_COMMIT_OVERRIDE
+feat(api): expose new endpoint
+
+fix(db): handle null gracefully
+END_COMMIT_OVERRIDE
+
+trailer ignored
+`
+	got := ParseAll("abc1234", raw)
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2", len(got))
+	}
+	if got[0].Type != TypeFeat || got[0].Scope != "api" {
+		t.Errorf("entry 0 = %+v, want feat(api)", got[0])
+	}
+	if got[1].Type != TypeFix || got[1].Scope != "db" {
+		t.Errorf("entry 1 = %+v, want fix(db)", got[1])
+	}
+	for i, p := range got {
+		if p.Hash != "abc1234" {
+			t.Errorf("entry %d hash = %q, want abc1234", i, p.Hash)
+		}
+	}
+}
+
+func TestParseAll_MalformedOverrideFallsBack(t *testing.T) {
+	raw := "feat: thing\n\nBEGIN_COMMIT_OVERRIDE\nfix: ignored"
+	got := ParseAll("abc1234", raw)
+	if len(got) != 1 {
+		t.Fatalf("len = %d, want 1 (fallback)", len(got))
+	}
+	if got[0].Type != TypeFeat {
+		t.Errorf("type = %q, want feat", got[0].Type)
+	}
+}
+
+func TestParseAll_EmptyOverrideFallsBack(t *testing.T) {
+	raw := "feat: thing\n\nBEGIN_COMMIT_OVERRIDE\nEND_COMMIT_OVERRIDE"
+	got := ParseAll("abc1234", raw)
+	if len(got) != 1 {
+		t.Fatalf("len = %d, want 1", len(got))
+	}
+	if got[0].Type != TypeFeat {
+		t.Errorf("type = %q, want feat", got[0].Type)
+	}
+}
+
 func TestShortHash(t *testing.T) {
 	pc := ParsedCommit{Hash: "abcdef1234567890"}
 	if pc.ShortHash() != "abcdef1" {

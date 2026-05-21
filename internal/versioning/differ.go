@@ -26,6 +26,13 @@ func ListProjectsChangedBetweenCommits(base string, head string) (map[string]boo
 
 	changed := map[string]bool{}
 	for name, cfg := range app.State.Config.Projects {
+		// "." means the project IS the repo root — any diff entry counts.
+		if cfg.Path == "." {
+			if len(diff) > 0 {
+				changed[name] = true
+			}
+			continue
+		}
 		for _, l := range diff {
 			if strings.HasPrefix(l, cfg.Path+"/") {
 				changed[name] = true

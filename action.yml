@@ -19,8 +19,8 @@ inputs:
     description: "Name of the configuration file"
     required: false
   version:
-    description: "CLI version. Defaults to latest"
-    default: "latest"
+    description: "CLI version (docker tag). When unset, defaults to the latest patch of the action's major (e.g. `v0` when called as `@v0` or `@v0.7.3`). Errors if the action ref isn't semver-shaped — set explicitly when pinning to a branch or SHA."
+    default: ""
     required: false
 outputs:
   output:
@@ -70,16 +70,31 @@ runs:
 
         read -r -a CLI_ARGS <<< "${{ inputs.command }} ${{ inputs.args }}"
 
+        VERSION="${{ inputs.version }}"
+        if [ -z "$VERSION" ]; then
+          # Resolve to the moving v<major> docker tag based on how the action was invoked.
+          # GITHUB_ACTION_REF is the ref the caller used (e.g. v0.7.3, v0, main, or a SHA).
+          REF="${GITHUB_ACTION_REF:-}"
+          if [[ "$REF" =~ ^v([0-9]+)(\.[0-9]+)?(\.[0-9]+)?$ ]]; then
+            VERSION="v${BASH_REMATCH[1]}"
+          else
+            echo "::error::Could not derive a default monotrack version from GITHUB_ACTION_REF=\"$REF\". Pin the action to a tag like @v0 or @v0.7.3, or set the \`version\` input explicitly."
+            exit 1
+          fi
+        fi
+
         echo "CLI Arguments: ${CLI_ARGS[*]}"
-        echo "Using Monotrack version: ${{ inputs.version }}"
+        echo "Using Monotrack version: $VERSION"
         echo "Using config file: ${{ inputs.config }}"
 
         set +e
         OUTPUT=$(docker run --rm \
             -e GITHUB_REPOSITORY="${GITHUB_REPOSITORY}" \
+            -e GITHUB_TOKEN="${GITHUB_TOKEN:-}" \
+            -e GH_TOKEN="${GITHUB_TOKEN:-}" \
             -v "$GITHUB_WORKSPACE":/repo \
             -w /repo \
-            ghcr.io/arnoldvann/monotrack:${{ inputs.version }} \
+            ghcr.io/arnoldvann/monotrack:$VERSION \
             "${CLI_ARGS[@]}" \
             --base "$BASE" \
             --head "$HEAD" \

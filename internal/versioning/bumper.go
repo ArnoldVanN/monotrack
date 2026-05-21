@@ -47,18 +47,19 @@ func (b *VersionBumper) BumpProjects(
 	preRelease bool,
 	head string,
 ) ([]BumpResult, error) {
-	projectToTags, err := git.GetTagsForProjects(p)
+	cfg := app.State.Config
+	projectToTags, err := git.GetTagsForProjects(cfg, p)
 	if err != nil {
 		return nil, err
 	}
 
 	for name, project := range p {
 		if _, ok := projectToTags[project]; !ok {
-			projectToTags[project] = []string{name + "/v0.0.0"}
+			projectToTags[project] = []string{cfg.TagFor(name, "v0.0.0")}
 		}
 	}
 
-	projectToLatest, err := utils.GetLatestTagPerProject(projectToTags)
+	projectToLatest, err := utils.GetLatestTagPerProject(cfg, projectToTags)
 	if err != nil {
 		return nil, err
 	}
@@ -117,6 +118,32 @@ func (b *VersionBumper) BumpProjects(
 	return results, nil
 }
 
+// FinalizePropose commits files onto the release branch and force-pushes
+// it. Caller must have written files to disk first and ensured the working
+// tree is otherwise clean.
+func (b *VersionBumper) FinalizePropose(releaseBranch, baseBranch, message string, files []string) error {
+	if releaseBranch == "" {
+		return fmt.Errorf("empty release branch")
+	}
+	if len(files) == 0 {
+		return fmt.Errorf("no files to commit")
+	}
+
+	if err := git.CheckoutBranchFrom(releaseBranch, baseBranch); err != nil {
+		return err
+	}
+	defer func() { _ = git.CheckoutBranch(baseBranch) }()
+
+	if err := git.AddFiles(files); err != nil {
+		return fmt.Errorf("staging release files: %w", err)
+	}
+	commitSha, err := git.CommitPaths(message, files)
+	if err != nil {
+		return fmt.Errorf("committing release files: %w", err)
+	}
+	return git.ForcePushBranch(releaseBranch, commitSha)
+}
+
 // Finalize creates and pushes tags for the bumped projects. When branch is
 // non-empty, the current branch tip (containing the changelog commit) is
 // pushed atomically with the tags. On a non-fast-forward rejection (a
@@ -130,7 +157,7 @@ func (b *VersionBumper) Finalize(results []BumpResult, head string, branch strin
 
 	tags := make([]string, 0, len(results))
 	for _, r := range results {
-		tag := fmt.Sprintf("%s/%s", r.Project.Name(), r.NewVersion)
+		tag := app.State.Config.TagFor(r.Project.Name(), r.NewVersion)
 		tags = append(tags, tag)
 
 		exists, err := git.TagExistsOnRemote(tag)
@@ -257,7 +284,7 @@ func isReleaseCommit(message string) bool {
 func parseAll(raw []git.RawCommit) []conventional.ParsedCommit {
 	out := make([]conventional.ParsedCommit, 0, len(raw))
 	for _, r := range raw {
-		out = append(out, conventional.Parse(r.Hash, r.Message))
+		out = append(out, conventional.ParseAll(r.Hash, r.Message)...)
 	}
 	return out
 }
@@ -273,7 +300,6 @@ func deriveKind(commits []conventional.ParsedCommit) BumpKind {
 	}
 }
 
-// TODO: custom prefixes and separators
 func bumpVersion(version string, kind BumpKind, preRelease bool) (string, error) {
 	if !semver.IsValid(version) {
 		return "", fmt.Errorf("invalid semver: %q", version)

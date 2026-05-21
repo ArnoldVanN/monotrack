@@ -31,7 +31,7 @@ var (
 				return fmt.Errorf("missing head SHA")
 			}
 
-			projectToTags, err := git.GetTagsForProjects(app.State.Projects)
+			projectToTags, err := git.GetTagsForProjects(app.State.Config, app.State.Projects)
 			if err != nil {
 				return err
 			}
@@ -43,7 +43,7 @@ var (
 				}
 			}
 
-			projectToLatest, err := utils.GetLatestTagPerProject(projectToTags)
+			projectToLatest, err := utils.GetLatestTagPerProject(app.State.Config, projectToTags)
 			if err != nil {
 				return err
 			}

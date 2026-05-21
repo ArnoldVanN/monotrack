@@ -3,10 +3,76 @@ package projects
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 type Config struct {
-	Projects map[string]ProjectConfig `mapstructure:"projects"`
+	Projects  map[string]ProjectConfig `mapstructure:"projects"`
+	Release   ReleaseConfig            `mapstructure:"release"`
+	Tags      TagsConfig               `mapstructure:"tags"`
+	Changelog ChangelogConfig          `mapstructure:"changelog"`
+}
+
+// ChangelogConfig customizes changelog output.
+// The `path` field is honored only when a single changelog is used.
+type ChangelogConfig struct {
+	Path string `mapstructure:"path"`
+}
+
+func (c ChangelogConfig) path() string {
+	if c.Path == "" {
+		return "CHANGELOG.md"
+	}
+	return c.Path
+}
+
+// ChangelogPath returns the configured changelog path, defaulting to
+// "CHANGELOG.md".
+func (c *Config) ChangelogPath() string {
+	return c.Changelog.path()
+}
+
+// TagsConfig customizes how project tags are rendered and parsed.
+// Default scheme: `<name><separator><prefix><version>` (e.g. `api/v1.2.3`).
+// single-project repos drop the `<name><separator>` part.
+type TagsConfig struct {
+	// Separator placed between the project name and the version prefix.
+	// Defaults to "/". Ignored in single-project mode.
+	Separator string `mapstructure:"separator"`
+	// VersionPrefix placed immediately before the numeric version (e.g. "v"
+	// in `v1.2.3`). Defaults to "v".
+	VersionPrefix *string `mapstructure:"versionPrefix"`
+}
+
+func (t TagsConfig) sep() string {
+	if t.Separator == "" {
+		return "/"
+	}
+	return t.Separator
+}
+
+func (t TagsConfig) vp() string {
+	if t.VersionPrefix == nil {
+		return "v"
+	}
+	return *t.VersionPrefix
+}
+
+// ReleaseConfig controls the PR-based release flow.
+type ReleaseConfig struct {
+	// Branch is the long-lived release branch name. The literal "{base}" is
+	// replaced with the base branch name at runtime. Defaults to
+	// "monotrack/release-{base}" when empty.
+	Branch string `mapstructure:"branch"`
+}
+
+// ResolveReleaseBranch expands {base} and applies the default when unset.
+func (r ReleaseConfig) ResolveReleaseBranch(base string) string {
+	tmpl := r.Branch
+	if tmpl == "" {
+		tmpl = "monotrack/release-{base}"
+	}
+	return strings.ReplaceAll(tmpl, "{base}", base)
 }
 
 type ProjectConfig struct {
@@ -49,6 +115,42 @@ type Project interface {
 	IsEntrypoint() bool
 }
 
+// IsSingleProject reports whether the config defines exactly one project.
+func (c *Config) IsSingleProject() bool {
+	return len(c.Projects) == 1
+}
+
+// TagFor builds a tag string for the given project name and version under
+// the configured tag scheme. `version` may already include the canonical "v"
+// prefix; it's stripped before re-applying the configured VersionPrefix.
+func (c *Config) TagFor(projectName, version string) string {
+	bare := strings.TrimPrefix(version, "v")
+	rendered := c.Tags.vp() + bare
+	if c.IsSingleProject() {
+		return rendered
+	}
+	return projectName + c.Tags.sep() + rendered
+}
+
+// MatchTag reports whether `tag` belongs to `projectName` under the
+// configured tag scheme. On match, the returned version is the canonical
+// semver form (with leading "v") so it can be fed into golang.org/x/mod/semver.
+func (c *Config) MatchTag(tag, projectName string) (version string, ok bool) {
+	rest := tag
+	if !c.IsSingleProject() {
+		prefix := projectName + c.Tags.sep()
+		if !strings.HasPrefix(tag, prefix) {
+			return "", false
+		}
+		rest = strings.TrimPrefix(tag, prefix)
+	}
+	vp := c.Tags.vp()
+	if vp != "" && !strings.HasPrefix(rest, vp) {
+		return "", false
+	}
+	return "v" + strings.TrimPrefix(rest, vp), true
+}
+
 func (c *Config) Validate() error {
 	for name, pc := range c.Projects {
 		if !pc.Type.isValid() {
@@ -58,13 +160,28 @@ func (c *Config) Validate() error {
 			)
 		}
 
-		if pc.Path == "" {
-			return fmt.Errorf("project %q missing path", name)
+		// "" and "." both mean "the repo root" and are only allowed for
+		// single-project repos. Normalize "" to "." so downstream code can
+		// rely on a single representation.
+		if pc.Path == "" || pc.Path == "." {
+			if !c.IsSingleProject() {
+				return fmt.Errorf("project %q has path %q (repo root); only allowed when monotrack.yaml defines a single project", name, pc.Path)
+			}
+			if pc.Path == "" {
+				pc.Path = "."
+				c.Projects[name] = pc
+			}
 		}
 
-		_, err := os.Stat(pc.Path)
+		info, err := os.Stat(pc.Path)
 		if err != nil {
-			return err
+			if os.IsNotExist(err) {
+				return fmt.Errorf("project %q path %q does not exist", name, pc.Path)
+			}
+			return fmt.Errorf("project %q path %q: %w", name, pc.Path, err)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("project %q path %q is not a directory", name, pc.Path)
 		}
 
 		for _, dep := range pc.DependsOn {
