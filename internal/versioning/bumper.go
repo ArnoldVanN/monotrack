@@ -81,6 +81,24 @@ func (b *VersionBumper) BumpProjects(
 		changed[name] = changedProject{version: version, base: ""}
 	}
 
+	// Mark projects as changed when preRelease is false and
+	// the latest tag of a project is a pre-release tag (promotion)
+	if !preRelease {
+		for name, version := range projectToLatest {
+			if _, ok := changed[name]; ok {
+				continue
+			}
+			if semver.Prerelease(version) == "" {
+				continue
+			}
+			base, err := git.GetBase(name + "/" + version)
+			if err != nil {
+				return nil, err
+			}
+			changed[name] = changedProject{version: version, base: base}
+		}
+	}
+
 	results := make([]BumpResult, 0, len(changed))
 	for name, info := range changed {
 		proj, ok := p[name]

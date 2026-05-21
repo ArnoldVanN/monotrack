@@ -1,6 +1,16 @@
 package versioning
 
-import "testing"
+import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/arnoldvann/monotrack/internal/app"
+	"github.com/arnoldvann/monotrack/internal/git"
+	"github.com/arnoldvann/monotrack/internal/projects"
+)
 
 func TestBumpVersion(t *testing.T) {
 	tests := []struct {
@@ -61,4 +71,98 @@ func TestIsReleaseCommit(t *testing.T) {
 			t.Errorf("isReleaseCommit(%q) = %v, want %v", tt.msg, got, tt.want)
 		}
 	}
+}
+
+// TestBumpProjectsPromotesStalePrerelease covers the case where a project's
+// latest tag is a prerelease and no source files have changed since that tag.
+// With preRelease=false the project should still be picked up and have its
+// suffix stripped; with preRelease=true it should remain skipped.
+func TestBumpProjectsPromotesStalePrerelease(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available on PATH")
+	}
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, out)
+		}
+	}
+	run("init", "-q", "-b", "main")
+	run("config", "user.email", "test@example.com")
+	run("config", "user.name", "Test")
+	run("config", "commit.gpgsign", "false")
+	run("config", "tag.gpgsign", "false")
+
+	apiDir := filepath.Join(dir, "apps", "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	run("add", ".")
+	run("commit", "-q", "-m", "feat: init api")
+	run("tag", "api/v0.1.0-rc.1")
+
+	// Second project keeps the config in multi-project mode so tags use the
+	// `<name>/<version>` scheme.
+	webDir := filepath.Join(dir, "apps", "web")
+	if err := os.MkdirAll(webDir, 0o755); err != nil {
+		t.Fatalf("mkdir web: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(webDir, "index.js"), []byte("// web\n"), 0o644); err != nil {
+		t.Fatalf("write web: %v", err)
+	}
+	run("add", ".")
+	run("commit", "-q", "-m", "feat: init web")
+	run("tag", "web/v1.0.0")
+
+	api := projects.NewGoProject("api", "apps/api", true, "go")
+	web := projects.NewNodeProject("web", "apps/web", true, "node")
+	cfg := &projects.Config{Projects: map[string]projects.ProjectConfig{
+		"api": {Type: projects.ProjectTypeGo, Path: "apps/api"},
+		"web": {Type: projects.ProjectTypeNode, Path: "apps/web"},
+	}}
+	app.Init(cfg, map[string]projects.Project{"api": api, "web": web})
+
+	head, err := git.GetHead()
+	if err != nil {
+		t.Fatalf("GetHead: %v", err)
+	}
+
+	b := NewBumper()
+
+	t.Run("promotes when preRelease=false", func(t *testing.T) {
+		results, err := b.BumpProjects(app.State.Projects, nil, false, head)
+		if err != nil {
+			t.Fatalf("BumpProjects: %v", err)
+		}
+		if len(results) != 1 {
+			t.Fatalf("results = %d, want 1: %+v", len(results), results)
+		}
+		got := results[0]
+		if got.Project.Name() != "api" {
+			t.Errorf("project = %q, want api", got.Project.Name())
+		}
+		if got.OldVersion != "v0.1.0-rc.1" {
+			t.Errorf("OldVersion = %q, want v0.1.0-rc.1", got.OldVersion)
+		}
+		if got.NewVersion != "v0.1.0" {
+			t.Errorf("NewVersion = %q, want v0.1.0", got.NewVersion)
+		}
+	})
+
+	t.Run("skips when preRelease=true", func(t *testing.T) {
+		results, err := b.BumpProjects(app.State.Projects, nil, true, head)
+		if err != nil {
+			t.Fatalf("BumpProjects: %v", err)
+		}
+		if len(results) != 0 {
+			t.Fatalf("results = %d, want 0: %+v", len(results), results)
+		}
+	})
 }

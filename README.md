@@ -381,6 +381,17 @@ monotrack tag bump --head 8a059ec --projects api -o json -p
 [{"name":"api","path":"apps/api","version":"v0.0.4-rc.1","type":"go"}}]
 ```
 
+#### Promote a prerelease to a release
+When a project's latest tag is a prerelease (e.g. `api/v0.1.0-rc.3`) and `tag bump` is invoked **without** `-p`, the project is treated as eligible even if no source files have changed since that tag. The prerelease suffix is stripped without bumping the version components:
+
+```bash
+# latest tag: api/v0.1.0-rc.3, no new commits under apps/api
+monotrack tag bump --projects api -o json
+[{"name":"api","path":"apps/api","version":"v0.1.0","type":"go"}]
+```
+
+This fits the branch-promotion model: RCs accumulate on `main` (run with `-p`), then a merge into `production` runs without `-p` and converts the latest RC into a release tag.
+
 #### Run the bump command without making any changes (dry run)
 ```bash
 monotrack tag bump --dry
