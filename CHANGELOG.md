@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.2](https://github.com/ArnoldVanN/monotrack/compare/v0.9.1...v0.9.2) (2026-05-22)
+
+
+### Bug Fixes
+
+* restore all tags (incl. unreachable) for version selection ([51f90ac](https://github.com/ArnoldVanN/monotrack/commit/51f90acf8ad46dd88b45c107e11497302f00dc21))
+
 ## [0.9.1](https://github.com/ArnoldVanN/monotrack/compare/v0.9.0...v0.9.1) (2026-05-22)
 
 
