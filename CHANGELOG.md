@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/ArnoldVanN/monotrack/compare/v0.9.0...v0.9.1) (2026-05-22)
+
+
+### Bug Fixes
+
+* ignore tags not reachable from head ([9aff1af](https://github.com/ArnoldVanN/monotrack/commit/9aff1af055e8d709b50d7e7f9587a4843bddbed6))
+
 ## [0.9.0](https://github.com/ArnoldVanN/monotrack/compare/v0.8.3...v0.9.0) (2026-05-21)
 
 
