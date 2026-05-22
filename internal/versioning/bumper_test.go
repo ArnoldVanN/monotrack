@@ -167,13 +167,13 @@ func TestBumpProjectsPromotesStalePrerelease(t *testing.T) {
 	})
 }
 
-// TestBumpProjectsIgnoresTagsNotReachableFromHead reproduces the situation
-// where a release tag was created on a feature branch that never merged
-// forward into the release branch (e.g. promotion happened on a side branch).
-// Such a tag's commit is not an ancestor of head, so `<tag>..head` would
-// reach all the way back to the branch point and over-report the changelog.
-// monotrack should treat the tag as if it did not exist for this head.
-func TestBumpProjectsIgnoresTagsNotReachableFromHead(t *testing.T) {
+// TestBumpProjectsUsesUnreachableTagsForVersionSelection covers the
+// promotion-via-PR workflow: a release tag exists for the project but its
+// commit lives on a promotion branch that never merged back into head. The
+// bumper must still treat that tag as the latest version — otherwise the
+// next bump would compute v0.0.1 (the bootstrap successor) and collide with
+// the existing tag on every subsequent run.
+func TestBumpProjectsUsesUnreachableTagsForVersionSelection(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not available on PATH")
 	}
@@ -204,42 +204,51 @@ func TestBumpProjectsIgnoresTagsNotReachableFromHead(t *testing.T) {
 		}
 	}
 
-	// Initial commit on main — shared ancestor for both branches.
 	writeAPI("package main // v0\n")
 	run("add", ".")
 	run("commit", "-q", "-m", "chore: init api")
 
-	// Side branch with its own release commit + tag. This tag's commit is
-	// NOT an ancestor of main once we switch back.
-	run("checkout", "-q", "-b", "feature")
-	writeAPI("package main // side\n")
+	run("checkout", "-q", "-b", "promotion")
+	writeAPI("package main // promoted\n")
 	run("add", ".")
-	run("commit", "-q", "-m", "feat: side-branch work")
-	run("tag", "api/v1.0.0")
+	run("commit", "-q", "-m", "feat: promoted release")
+	run("tag", "api/v0.0.1-rc.1")
 
-	// Back to main with new work. The api/v1.0.0 tag lives only on `feature`.
 	run("checkout", "-q", "main")
 	writeAPI("package main // mainline\n")
 	run("add", ".")
 	run("commit", "-q", "-m", "feat: mainline work")
 
+	// Second project keeps the config in multi-project mode so tags use the
+	// `<name>/<version>` scheme.
+	webDir := filepath.Join(dir, "apps", "web")
+	if err := os.MkdirAll(webDir, 0o755); err != nil {
+		t.Fatalf("mkdir web: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(webDir, "index.js"), []byte("// web\n"), 0o644); err != nil {
+		t.Fatalf("write web: %v", err)
+	}
+	run("add", ".")
+	run("commit", "-q", "-m", "feat: init web")
+	run("tag", "web/v1.0.0")
+
 	api := projects.NewGoProject("api", "apps/api", true, "go")
+	web := projects.NewNodeProject("web", "apps/web", true, "node")
 	cfg := &projects.Config{Projects: map[string]projects.ProjectConfig{
 		"api": {Type: projects.ProjectTypeGo, Path: "apps/api"},
+		"web": {Type: projects.ProjectTypeNode, Path: "apps/web"},
 	}}
-	app.Init(cfg, map[string]projects.Project{"api": api})
+	app.Init(cfg, map[string]projects.Project{"api": api, "web": web})
 
 	head, err := git.GetHead()
 	if err != nil {
 		t.Fatalf("GetHead: %v", err)
 	}
 
-	// Sanity: confirm api/v1.0.0 really isn't an ancestor of head — otherwise
-	// the test would not exercise the fix.
-	if reachable, err := git.IsAncestor("api/v1.0.0", head); err != nil {
+	if reachable, err := git.IsAncestor("api/v0.0.1-rc.1", head); err != nil {
 		t.Fatalf("IsAncestor: %v", err)
 	} else if reachable {
-		t.Fatalf("test setup is wrong: api/v1.0.0 should not be ancestor of head")
+		t.Fatalf("test setup is wrong: api/v0.0.1-rc.1 should not be ancestor of head")
 	}
 
 	b := NewBumper()
@@ -247,19 +256,20 @@ func TestBumpProjectsIgnoresTagsNotReachableFromHead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BumpProjects: %v", err)
 	}
-	if len(results) != 1 {
-		t.Fatalf("results = %d, want 1: %+v", len(results), results)
+	var apiResult *BumpResult
+	for i := range results {
+		if results[i].Project.Name() == "api" {
+			apiResult = &results[i]
+			break
+		}
 	}
-	got := results[0]
-	if got.OldVersion != "v0.0.0" {
-		t.Errorf("OldVersion = %q, want v0.0.0 (side-branch tag should be ignored)", got.OldVersion)
+	if apiResult == nil {
+		t.Fatalf("no result for api: %+v", results)
 	}
-	// Only the single mainline commit should be considered — not anything
-	// behind the merge-base.
-	if len(got.Commits) != 0 {
-		// Note: zero-tag projects intentionally have base == "", so commits is
-		// empty. The important assertion is OldVersion above; we still check
-		// here to lock the behavior in.
-		t.Errorf("Commits = %d, want 0 for zero-tag bootstrap path", len(got.Commits))
+	if apiResult.OldVersion != "v0.0.1-rc.1" {
+		t.Errorf("OldVersion = %q, want v0.0.1-rc.1 (unreachable tag must still count)", apiResult.OldVersion)
+	}
+	if apiResult.NewVersion == "v0.0.1-rc.1" {
+		t.Errorf("NewVersion = %q collides with existing tag", apiResult.NewVersion)
 	}
 }

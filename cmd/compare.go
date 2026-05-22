@@ -43,7 +43,7 @@ var (
 				}
 			}
 
-			projectToLatest, err := utils.GetLatestTagPerProject(app.State.Config, projectToTags, head.Value.String())
+			projectToLatest, err := utils.GetLatestTagPerProject(app.State.Config, projectToTags)
 			if err != nil {
 				return err
 			}
