@@ -166,3 +166,100 @@ func TestBumpProjectsPromotesStalePrerelease(t *testing.T) {
 		}
 	})
 }
+
+// TestBumpProjectsIgnoresTagsNotReachableFromHead reproduces the situation
+// where a release tag was created on a feature branch that never merged
+// forward into the release branch (e.g. promotion happened on a side branch).
+// Such a tag's commit is not an ancestor of head, so `<tag>..head` would
+// reach all the way back to the branch point and over-report the changelog.
+// monotrack should treat the tag as if it did not exist for this head.
+func TestBumpProjectsIgnoresTagsNotReachableFromHead(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available on PATH")
+	}
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, out)
+		}
+	}
+	run("init", "-q", "-b", "main")
+	run("config", "user.email", "test@example.com")
+	run("config", "user.name", "Test")
+	run("config", "commit.gpgsign", "false")
+	run("config", "tag.gpgsign", "false")
+
+	apiDir := filepath.Join(dir, "apps", "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	writeAPI := func(content string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte(content), 0o644); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+	}
+
+	// Initial commit on main — shared ancestor for both branches.
+	writeAPI("package main // v0\n")
+	run("add", ".")
+	run("commit", "-q", "-m", "chore: init api")
+
+	// Side branch with its own release commit + tag. This tag's commit is
+	// NOT an ancestor of main once we switch back.
+	run("checkout", "-q", "-b", "feature")
+	writeAPI("package main // side\n")
+	run("add", ".")
+	run("commit", "-q", "-m", "feat: side-branch work")
+	run("tag", "api/v1.0.0")
+
+	// Back to main with new work. The api/v1.0.0 tag lives only on `feature`.
+	run("checkout", "-q", "main")
+	writeAPI("package main // mainline\n")
+	run("add", ".")
+	run("commit", "-q", "-m", "feat: mainline work")
+
+	api := projects.NewGoProject("api", "apps/api", true, "go")
+	cfg := &projects.Config{Projects: map[string]projects.ProjectConfig{
+		"api": {Type: projects.ProjectTypeGo, Path: "apps/api"},
+	}}
+	app.Init(cfg, map[string]projects.Project{"api": api})
+
+	head, err := git.GetHead()
+	if err != nil {
+		t.Fatalf("GetHead: %v", err)
+	}
+
+	// Sanity: confirm api/v1.0.0 really isn't an ancestor of head — otherwise
+	// the test would not exercise the fix.
+	if reachable, err := git.IsAncestor("api/v1.0.0", head); err != nil {
+		t.Fatalf("IsAncestor: %v", err)
+	} else if reachable {
+		t.Fatalf("test setup is wrong: api/v1.0.0 should not be ancestor of head")
+	}
+
+	b := NewBumper()
+	results, err := b.BumpProjects(app.State.Projects, nil, true, head)
+	if err != nil {
+		t.Fatalf("BumpProjects: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("results = %d, want 1: %+v", len(results), results)
+	}
+	got := results[0]
+	if got.OldVersion != "v0.0.0" {
+		t.Errorf("OldVersion = %q, want v0.0.0 (side-branch tag should be ignored)", got.OldVersion)
+	}
+	// Only the single mainline commit should be considered — not anything
+	// behind the merge-base.
+	if len(got.Commits) != 0 {
+		// Note: zero-tag projects intentionally have base == "", so commits is
+		// empty. The important assertion is OldVersion above; we still check
+		// here to lock the behavior in.
+		t.Errorf("Commits = %d, want 0 for zero-tag bootstrap path", len(got.Commits))
+	}
+}

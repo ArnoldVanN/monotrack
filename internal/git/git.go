@@ -345,3 +345,16 @@ func GetBase(tag string) (string, error) {
 
 	return strings.TrimSpace(string(out)), nil
 }
+
+// IsAncestor reports whether commit is an ancestor of head.
+func IsAncestor(commit, head string) (bool, error) {
+	cmd := exec.Command("git", "merge-base", "--is-ancestor", commit, head)
+	err := cmd.Run()
+	if err == nil {
+		return true, nil
+	}
+	if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+		return false, nil
+	}
+	return false, fmt.Errorf("error checking ancestry of %q in %q: %w", commit, head, err)
+}
