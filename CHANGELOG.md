@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.4](https://github.com/ArnoldVanN/monotrack/compare/v0.9.3...v0.9.4) (2026-05-23)
+
+
+### Bug Fixes
+
+* **changelog:** render accurate fallback line per bump reason ([3c093b8](https://github.com/ArnoldVanN/monotrack/commit/3c093b87ed728c3a63d88902073b934051c5455e))
+
 ## [0.9.3](https://github.com/ArnoldVanN/monotrack/compare/v0.9.2...v0.9.3) (2026-05-23)
 
 
