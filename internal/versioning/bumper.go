@@ -53,22 +53,17 @@ func (b *VersionBumper) BumpProjects(
 		return nil, err
 	}
 
-	for name, project := range p {
-		if _, ok := projectToTags[project]; !ok {
-			projectToTags[project] = []string{cfg.TagFor(name, "v0.0.0")}
-		}
-	}
-
-	projectToLatest, err := utils.GetLatestTagPerProject(cfg, projectToTags)
+	projectToLatest, err := utils.GetLatestTagPerProject(cfg, projectToTags, head)
 	if err != nil {
 		return nil, err
 	}
 
+	// Projects with no tag reachable from head (never released, or only tagged
+	// on side branches that never merged forward) also start from v0.0.0
 	zeroTagProjects := make(map[string]string)
-	for proj, t := range projectToLatest {
-		if strings.HasPrefix(t, "v0.0.0") {
-			zeroTagProjects[proj] = t
-			delete(projectToLatest, proj)
+	for name := range p {
+		if _, ok := projectToLatest[name]; !ok {
+			zeroTagProjects[name] = "v0.0.0"
 		}
 	}
 
