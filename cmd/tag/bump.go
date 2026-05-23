@@ -332,6 +332,7 @@ func buildEntries(results []versioning.BumpResult) []changelog.Entry {
 			OldVersion: r.OldVersion,
 			NewVersion: r.NewVersion,
 			Date:       now,
+			Reason:     r.Reason,
 			Commits:    r.Commits,
 		})
 	}

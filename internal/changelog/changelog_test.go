@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/arnoldvann/monotrack/internal/versioning"
 	"github.com/arnoldvann/monotrack/internal/versioning/conventional"
 )
 
@@ -51,11 +52,62 @@ func TestRender_DependencyOnly(t *testing.T) {
 	e := Entry{
 		NewVersion: "v0.0.2",
 		Date:       time.Now(),
+		Reason:     versioning.ReasonDependency,
 		Commits:    nil,
 	}
 	out := Render(e)
 	if !strings.Contains(out, "Updated internal dependencies") {
 		t.Errorf("expected dep-only fallback, got: %s", out)
+	}
+}
+
+func TestRender_PromotionFallback(t *testing.T) {
+	e := Entry{
+		OldVersion: "v1.2.0-rc.3",
+		NewVersion: "v1.2.0",
+		Date:       time.Now(),
+		Reason:     versioning.ReasonPromotion,
+		Commits:    nil,
+	}
+	out := Render(e)
+	if strings.Contains(out, "Updated internal dependencies") {
+		t.Errorf("promotion should not render dependency fallback: %s", out)
+	}
+	if !strings.Contains(out, "Promoted from v1.2.0-rc.3") {
+		t.Errorf("expected promotion line referencing old version, got: %s", out)
+	}
+}
+
+func TestRender_InitialFallback(t *testing.T) {
+	e := Entry{
+		NewVersion: "v0.1.0",
+		Date:       time.Now(),
+		Reason:     versioning.ReasonInitial,
+		Commits:    nil,
+	}
+	out := Render(e)
+	if !strings.Contains(out, "Initial release") {
+		t.Errorf("expected initial-release fallback, got: %s", out)
+	}
+}
+
+func TestRender_OnlyNonConventional(t *testing.T) {
+	e := Entry{
+		NewVersion: "v0.0.2",
+		Date:       time.Now(),
+		Commits: []conventional.ParsedCommit{
+			{Hash: "abcdef1", Type: conventional.TypeUnknown, Subject: "fix changelogs"},
+		},
+	}
+	out := Render(e)
+	if strings.Contains(out, "Updated internal dependencies") {
+		t.Errorf("should not use dep-only fallback when commits exist: %s", out)
+	}
+	if !strings.Contains(out, "fix changelogs") {
+		t.Errorf("expected non-conventional subject in output: %s", out)
+	}
+	if !strings.Contains(out, "### Other") {
+		t.Errorf("expected Other section: %s", out)
 	}
 }
 
