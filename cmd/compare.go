@@ -134,7 +134,7 @@ func getChangedProjects(p map[string]string, head string) (map[string]bool, erro
 	allProjects := make(map[string]bool, 0)
 
 	for _, c := range baseCommits {
-		pr, err := versioning.ListProjectsChangedBetweenCommits(c, head)
+		_, pr, err := versioning.ListProjectsChangedBetweenCommits(c, head)
 		if err != nil {
 			return nil, err
 		}

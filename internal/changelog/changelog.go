@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/arnoldvann/monotrack/internal/projects"
+	"github.com/arnoldvann/monotrack/internal/versioning"
 	"github.com/arnoldvann/monotrack/internal/versioning/conventional"
 )
 
@@ -22,6 +23,7 @@ type Entry struct {
 	OldVersion string
 	NewVersion string
 	Date       time.Time
+	Reason     versioning.BumpReason
 	Commits    []conventional.ParsedCommit
 }
 
@@ -49,8 +51,8 @@ var sections = []section{
 // Render returns a markdown block describing this release for one project.
 // Non-conventional commits are excluded. Breaking changes get their own section
 // regardless of underlying type. If a project has no conventional commits at
-// all (e.g. it was bumped only because a dependency changed), an "Other"
-// section is added with a single "Updated internal dependencies" entry.
+// all, an "Other" section is appended whose content depends on Entry.Reason
+// (dependency bump, promotion, or initial release).
 func Render(e Entry) string {
 	var b strings.Builder
 
@@ -97,10 +99,48 @@ func Render(e Entry) string {
 	}
 
 	if conventionalCount == 0 {
-		b.WriteString("### Other\n\n- Updated internal dependencies\n\n")
+		b.WriteString(renderFallback(e))
 	}
 
 	return b.String()
+}
+
+// renderFallback emits the trailing section when no conventional commits were
+// rendered. With commits present it lists the non-conventional ones; with none,
+// it uses the bump's Reason to pick an accurate single-line summary.
+func renderFallback(e Entry) string {
+	if len(e.Commits) > 0 {
+		var b strings.Builder
+		b.WriteString("### Other\n\n")
+		for _, c := range e.Commits {
+			b.WriteString(renderRawLine(c))
+		}
+		b.WriteString("\n")
+		return b.String()
+	}
+
+	var line string
+	switch e.Reason {
+	case versioning.ReasonPromotion:
+		if e.OldVersion != "" {
+			line = fmt.Sprintf("Promoted from %s", e.OldVersion)
+		} else {
+			line = "Promoted to stable"
+		}
+	case versioning.ReasonInitial:
+		line = "Initial release"
+	default:
+		line = "Updated internal dependencies"
+	}
+	return fmt.Sprintf("### Other\n\n- %s\n\n", line)
+}
+
+func renderRawLine(c conventional.ParsedCommit) string {
+	subject := c.Subject
+	if subject == "" {
+		subject = c.Description
+	}
+	return fmt.Sprintf("- %s (%s)\n", subject, c.ShortHash())
 }
 
 func renderLine(c conventional.ParsedCommit) string {
@@ -260,7 +300,7 @@ func PRBody(entries []Entry) string {
 		}
 
 		if conventionalCount == 0 {
-			b.WriteString("### Other\n\n- Updated internal dependencies\n\n")
+			b.WriteString(renderFallback(e))
 		} else if !nonBreakingRendered {
 			// only breaking commits — point readers to the section above
 			b.WriteString("_See breaking changes above._\n\n")

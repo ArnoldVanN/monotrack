@@ -22,11 +22,23 @@ const (
 	PatchBump BumpKind = "patch"
 )
 
+// BumpReason captures *why* a project was bumped, so the changelog can render
+// an accurate fallback line when there are no conventional commits to list.
+type BumpReason string
+
+const (
+	ReasonCommits    BumpReason = "commits"
+	ReasonDependency BumpReason = "dependency"
+	ReasonPromotion  BumpReason = "promotion"
+	ReasonInitial    BumpReason = "initial"
+)
+
 type BumpResult struct {
 	Project    projects.Project
 	OldVersion string
 	NewVersion string
 	Kind       BumpKind
+	Reason     BumpReason
 	Commits    []conventional.ParsedCommit
 }
 
@@ -98,20 +110,28 @@ func (b *VersionBumper) BumpProjects(
 		//   - reachable base: bump only if files under the project's path
 		//     changed in base..head.
 		if base == "" {
-			changed[name] = changedProject{version: bumpFrom, base: ""}
+			changed[name] = changedProject{version: bumpFrom, base: "", reason: ReasonInitial}
 			continue
 		}
-		touched, err := ListProjectsChangedBetweenCommits(base, head)
+		direct, all, err := ListProjectsChangedBetweenCommits(base, head)
 		if err != nil {
 			return nil, err
 		}
-		if touched[name] {
-			changed[name] = changedProject{version: bumpFrom, base: base}
+		if !all[name] {
+			continue
 		}
+		reason := ReasonDependency
+		if direct[name] {
+			reason = ReasonCommits
+		}
+		changed[name] = changedProject{version: bumpFrom, base: base, reason: reason}
 	}
 
 	// Mark projects as changed when preRelease is false and the latest tag of
-	// a project is a pre-release tag (promotion).
+	// a project is a pre-release tag (promotion). The changelog range is
+	// widened to the last reachable *stable* tag (when one exists) so the
+	// promotion entry collects every commit that landed across the prerelease
+	// cycle rather than just whatever came after the most recent rc tag.
 	if !preRelease {
 		for name, version := range projectToLatest {
 			if _, ok := changed[name]; ok {
@@ -120,11 +140,19 @@ func (b *VersionBumper) BumpProjects(
 			if semver.Prerelease(version) == "" {
 				continue
 			}
-			base, err := reachableBase(name)
+			base, err := latestStableReachableBase(cfg, projectToTags[p[name]], name, head)
 			if err != nil {
 				return nil, err
 			}
-			changed[name] = changedProject{version: version, base: base}
+			if base == "" {
+				// Fall back to the prerelease tag's base if no stable tag is
+				// reachable (first-ever stable release after a prerelease run).
+				base, err = reachableBase(name)
+				if err != nil {
+					return nil, err
+				}
+			}
+			changed[name] = changedProject{version: version, base: base, reason: ReasonPromotion}
 		}
 	}
 
@@ -158,6 +186,7 @@ func (b *VersionBumper) BumpProjects(
 			OldVersion: info.version,
 			NewVersion: newVer,
 			Kind:       kind,
+			Reason:     info.reason,
 			Commits:    parsed,
 		})
 	}
@@ -271,6 +300,37 @@ func buildRefs(tags []string, branch string) []string {
 type changedProject struct {
 	version string
 	base    string
+	reason  BumpReason
+}
+
+// latestStableReachableBase returns the merge-base of the highest-semver
+// non-prerelease tag for `name` that is an ancestor of `head`. Returns ""
+// when no such tag exists.
+func latestStableReachableBase(cfg *projects.Config, tags []string, name, head string) (string, error) {
+	var best string
+	for _, t := range tags {
+		v, ok := cfg.MatchTag(t, name)
+		if !ok || !semver.IsValid(v) {
+			continue
+		}
+		if semver.Prerelease(v) != "" {
+			continue
+		}
+		if best != "" && semver.Compare(v, best) <= 0 {
+			continue
+		}
+		reachable, err := git.IsAncestor(t, head)
+		if err != nil {
+			return "", fmt.Errorf("checking ancestry of tag %q: %w", t, err)
+		}
+		if reachable {
+			best = v
+		}
+	}
+	if best == "" {
+		return "", nil
+	}
+	return git.GetBase(cfg.TagFor(name, best))
 }
 
 func commitsForProject(base, head string, proj projects.Project) ([]git.RawCommit, error) {
