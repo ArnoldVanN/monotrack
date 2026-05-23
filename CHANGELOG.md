@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.3](https://github.com/ArnoldVanN/monotrack/compare/v0.9.2...v0.9.3) (2026-05-23)
+
+
+### Bug Fixes
+
+* detect history for changelog and bump separately ([f72339c](https://github.com/ArnoldVanN/monotrack/commit/f72339ccb408d0c2cafa58a58581bc99ba657369))
+
 ## [0.9.2](https://github.com/ArnoldVanN/monotrack/compare/v0.9.1...v0.9.2) (2026-05-22)
 
 
