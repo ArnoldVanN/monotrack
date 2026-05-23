@@ -53,31 +53,65 @@ func (b *VersionBumper) BumpProjects(
 		return nil, err
 	}
 
-	projectToLatest, err := utils.GetLatestTagPerProject(cfg, projectToTags, head)
+	// Absolute latest tag per project — drives the *next-version* computation
+	// and guarantees Finalize's collision check against existing remote tags
+	// won't keep selecting a tag that already exists on an orphan branch.
+	projectToLatest, err := utils.GetLatestTagPerProject(cfg, projectToTags)
 	if err != nil {
 		return nil, err
 	}
 
-	// Projects with no tag reachable from head (never released, or only tagged
-	// on side branches that never merged forward) also start from v0.0.0
-	zeroTagProjects := make(map[string]string)
+	// Latest *reachable* tag per project — drives the changelog `<base>..head`
+	// range. When the absolute latest is on an orphan commit (e.g. squash-merge
+	// debris) anchoring the diff there would over-report by thousands of
+	// commits; we fall back to the highest reachable tag, or to no base.
+	projectToReachable, err := utils.GetLatestReachableTagPerProject(cfg, projectToTags, head)
+	if err != nil {
+		return nil, err
+	}
+
+	reachableBase := func(name string) (string, error) {
+		v, ok := projectToReachable[name]
+		if !ok {
+			return "", nil
+		}
+		return git.GetBase(cfg.TagFor(name, v))
+	}
+
+	changed := make(map[string]changedProject)
 	for name := range p {
-		if _, ok := projectToLatest[name]; !ok {
-			zeroTagProjects[name] = "v0.0.0"
+		latest, hasLatest := projectToLatest[name]
+		base, err := reachableBase(name)
+		if err != nil {
+			return nil, err
+		}
+
+		bumpFrom := latest
+		if !hasLatest {
+			bumpFrom = "v0.0.0"
+		}
+
+		// Decide whether to bump:
+		//   - no reachable base (orphaned-only tags or no tags at all): always
+		//     bump; the new tag we create will be reachable and self-heal
+		//     future runs.
+		//   - reachable base: bump only if files under the project's path
+		//     changed in base..head.
+		if base == "" {
+			changed[name] = changedProject{version: bumpFrom, base: ""}
+			continue
+		}
+		touched, err := ListProjectsChangedBetweenCommits(base, head)
+		if err != nil {
+			return nil, err
+		}
+		if touched[name] {
+			changed[name] = changedProject{version: bumpFrom, base: base}
 		}
 	}
 
-	changed, err := getChangedProjectsVersions(projectToLatest, head)
-	if err != nil {
-		return nil, err
-	}
-
-	for name, version := range zeroTagProjects {
-		changed[name] = changedProject{version: version, base: ""}
-	}
-
-	// Mark projects as changed when preRelease is false and
-	// the latest tag of a project is a pre-release tag (promotion)
+	// Mark projects as changed when preRelease is false and the latest tag of
+	// a project is a pre-release tag (promotion).
 	if !preRelease {
 		for name, version := range projectToLatest {
 			if _, ok := changed[name]; ok {
@@ -86,7 +120,7 @@ func (b *VersionBumper) BumpProjects(
 			if semver.Prerelease(version) == "" {
 				continue
 			}
-			base, err := git.GetBase(name + "/" + version)
+			base, err := reachableBase(name)
 			if err != nil {
 				return nil, err
 			}
@@ -237,28 +271,6 @@ func buildRefs(tags []string, branch string) []string {
 type changedProject struct {
 	version string
 	base    string
-}
-
-func getChangedProjectsVersions(p map[string]string, head string) (map[string]changedProject, error) {
-	changedProjects := make(map[string]changedProject)
-
-	for proj, version := range p {
-		base, err := git.GetBase(proj + "/" + version)
-		if err != nil {
-			return nil, err
-		}
-
-		changed, err := ListProjectsChangedBetweenCommits(base, head)
-		if err != nil {
-			return nil, err
-		}
-
-		if changed[proj] {
-			changedProjects[proj] = changedProject{version: version, base: base}
-		}
-	}
-
-	return changedProjects, nil
 }
 
 func commitsForProject(base, head string, proj projects.Project) ([]git.RawCommit, error) {
