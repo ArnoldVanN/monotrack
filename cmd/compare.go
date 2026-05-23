@@ -43,7 +43,11 @@ var (
 				}
 			}
 
-			projectToLatest, err := utils.GetLatestTagPerProject(app.State.Config, projectToTags, head.Value.String())
+			// Use the latest *reachable* tag as the changelog/diff baseline:
+			// when the absolute latest is orphan-tagged the diff range explodes,
+			// so we fall back to the highest reachable tag (or to "no base" if
+			// none, treating the project as freshly-bootstrapped).
+			projectToLatest, err := utils.GetLatestReachableTagPerProject(app.State.Config, projectToTags, head.Value.String())
 			if err != nil {
 				return err
 			}
@@ -56,6 +60,14 @@ var (
 					zeroTagProjects[proj] = true
 					delete(projectToLatest, proj)
 				}
+			}
+			// Projects whose only tags are orphaned (no reachable tag) are
+			// absent from projectToLatest; treat them as changed/bootstrap.
+			for name := range app.State.Projects {
+				if _, ok := projectToLatest[name]; ok {
+					continue
+				}
+				zeroTagProjects[name] = true
 			}
 
 			changes, err := getChangedProjects(projectToLatest, head.Value.String())
