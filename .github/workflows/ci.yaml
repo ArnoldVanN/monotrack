@@ -5,16 +5,18 @@ on:
     branches:
       - main
     paths-ignore:
-      - '.release-please-manifest.json'
-      - 'release-please-config.json'
-      - 'CHANGELOG.md'
+      - ".release-please-manifest.json"
+      - "release-please-config.json"
+      - "CHANGELOG.md"
+      - "README.md"
   pull_request:
     branches:
       - main
     paths-ignore:
-      - '.release-please-manifest.json'
-      - 'release-please-config.json'
-      - 'CHANGELOG.md'
+      - ".release-please-manifest.json"
+      - "release-please-config.json"
+      - "CHANGELOG.md"
+      - "README.md"
 
 permissions:
   contents: read
