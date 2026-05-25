@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.5](https://github.com/ArnoldVanN/monotrack/compare/v0.9.4...v0.9.5) (2026-05-25)
+
+
+### Features
+
+* ignore patterns ([d44ef0d](https://github.com/ArnoldVanN/monotrack/commit/d44ef0d73146f51790bc3f6e5f3056bedfb0d1f0))
+
 ## [0.9.4](https://github.com/ArnoldVanN/monotrack/compare/v0.9.3...v0.9.4) (2026-05-23)
 
 
