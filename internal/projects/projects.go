@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/bmatcuk/doublestar/v4"
 )
 
 type Config struct {
@@ -81,6 +83,7 @@ type ProjectConfig struct {
 	Versioning string      `mapstructure:"versioning"`
 	DependsOn  []string    `mapstructure:"dependsOn"`
 	Build      BuildConfig `mapstructure:"build"`
+	Ignore     []string    `mapstructure:"ignore"`
 }
 
 type BuildConfig struct {
@@ -182,6 +185,13 @@ func (c *Config) Validate() error {
 		}
 		if !info.IsDir() {
 			return fmt.Errorf("project %q path %q is not a directory", name, pc.Path)
+		}
+
+		for _, pattern := range pc.Ignore {
+			p := strings.TrimPrefix(pattern, "!")
+			if !doublestar.ValidatePattern(p) {
+				return fmt.Errorf("project %q: invalid ignore pattern %q", name, pattern)
+			}
 		}
 
 		for _, dep := range pc.DependsOn {

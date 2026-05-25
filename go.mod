@@ -3,6 +3,7 @@ module github.com/arnoldvann/monotrack
 go 1.25.4
 
 require (
+	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	go.yaml.in/yaml/v3 v3.0.4

@@ -6,6 +6,7 @@ import (
 
 	"github.com/arnoldvann/monotrack/internal/app"
 	"github.com/arnoldvann/monotrack/internal/git"
+	"github.com/bmatcuk/doublestar/v4"
 )
 
 // Returns two sets: `direct` lists projects whose own files changed in
@@ -42,7 +43,7 @@ func ListProjectsChangedBetweenCommits(base string, head string) (map[string]boo
 		// "." means the project IS the repo root — any diff entry counts.
 		if cfg.Path == "." {
 			for _, l := range diff {
-				if !isManaged(l) {
+				if !isManaged(l) && !isIgnored(l, ".", cfg.Ignore) {
 					direct[name] = true
 					break
 				}
@@ -56,6 +57,9 @@ func ListProjectsChangedBetweenCommits(base string, head string) (map[string]boo
 			if isManaged(l) {
 				continue
 			}
+			if isIgnored(l, cfg.Path, cfg.Ignore) {
+				continue
+			}
 			direct[name] = true
 			break
 		}
@@ -67,6 +71,32 @@ func ListProjectsChangedBetweenCommits(base string, head string) (map[string]boo
 	}
 
 	return direct, all, nil
+}
+
+// isIgnored evaluates the ignore patterns (relative to projectPath) against
+// a diff file path. Patterns are processed top-to-bottom; last match wins.
+// A "!" prefix negates a pattern (re-includes the file).
+func isIgnored(file, projectPath string, patterns []string) bool {
+	if len(patterns) == 0 {
+		return false
+	}
+	var rel string
+	if projectPath == "." {
+		rel = file
+	} else {
+		rel = strings.TrimPrefix(file, projectPath+"/")
+	}
+	ignored := false
+	for _, p := range patterns {
+		negate := strings.HasPrefix(p, "!")
+		if negate {
+			p = p[1:]
+		}
+		if matched, _ := doublestar.Match(p, rel); matched {
+			ignored = !negate
+		}
+	}
+	return ignored
 }
 
 func collectParents(
