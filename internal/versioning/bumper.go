@@ -31,6 +31,7 @@ const (
 	ReasonDependency BumpReason = "dependency"
 	ReasonPromotion  BumpReason = "promotion"
 	ReasonInitial    BumpReason = "initial"
+	ReasonOrphaned   BumpReason = "orphaned"
 )
 
 type BumpResult struct {
@@ -59,61 +60,92 @@ func (b *VersionBumper) BumpProjects(
 	preRelease bool,
 	head string,
 ) ([]BumpResult, error) {
-	cfg := app.State.Config
+	tags, rawTags, err := resolveTagState(app.State.Config, p, head)
+	if err != nil {
+		return nil, err
+	}
+
+	changed, err := detectChanges(p, tags, rawTags, preRelease, head)
+	if err != nil {
+		return nil, err
+	}
+
+	return computeResults(changed, p, kindOverride, preRelease, head)
+}
+
+type tagState struct {
+	latest    string // absolute latest version (empty if no tags exist)
+	reachBase string // commit SHA of latest reachable tag (empty if none reachable)
+}
+
+// resolveTagState fetches tags and computes per-project tag state. The
+// absolute latest drives version numbering (avoiding collisions with orphan
+// tags); the reachable base drives changelog ranges.
+func resolveTagState(cfg *projects.Config, p map[string]projects.Project, head string) (
+	map[string]tagState, map[projects.Project][]string, error,
+) {
 	projectToTags, err := git.GetTagsForProjects(cfg, p)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// Absolute latest tag per project — drives the *next-version* computation
-	// and guarantees Finalize's collision check against existing remote tags
-	// won't keep selecting a tag that already exists on an orphan branch.
 	projectToLatest, err := utils.GetLatestTagPerProject(cfg, projectToTags)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// Latest *reachable* tag per project — drives the changelog `<base>..head`
-	// range. When the absolute latest is on an orphan commit (e.g. squash-merge
-	// debris) anchoring the diff there would over-report by thousands of
-	// commits; we fall back to the highest reachable tag, or to no base.
 	projectToReachable, err := utils.GetLatestReachableTagPerProject(cfg, projectToTags, head)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	reachableBase := func(name string) (string, error) {
-		v, ok := projectToReachable[name]
-		if !ok {
-			return "", nil
-		}
-		return git.GetBase(cfg.TagFor(name, v))
-	}
-
-	changed := make(map[string]changedProject)
+	states := make(map[string]tagState, len(p))
 	for name := range p {
-		latest, hasLatest := projectToLatest[name]
-		base, err := reachableBase(name)
-		if err != nil {
-			return nil, err
+		var ts tagState
+		if v, ok := projectToLatest[name]; ok {
+			ts.latest = v
 		}
+		if v, ok := projectToReachable[name]; ok {
+			base, err := git.GetBase(cfg.TagFor(name, v))
+			if err != nil {
+				return nil, nil, err
+			}
+			ts.reachBase = base
+		}
+		states[name] = ts
+	}
 
-		bumpFrom := latest
-		if !hasLatest {
+	return states, projectToTags, nil
+}
+
+// detectChanges determines which projects need a version bump and why.
+func detectChanges(
+	p map[string]projects.Project,
+	tags map[string]tagState,
+	rawTags map[projects.Project][]string,
+	preRelease bool,
+	head string,
+) (map[string]changedProject, error) {
+	cfg := app.State.Config
+	changed := make(map[string]changedProject)
+
+	for name := range p {
+		ts := tags[name]
+		bumpFrom := ts.latest
+		if bumpFrom == "" {
 			bumpFrom = "v0.0.0"
 		}
 
-		// Decide whether to bump:
-		//   - no reachable base (orphaned-only tags or no tags at all): always
-		//     bump; the new tag we create will be reachable and self-heal
-		//     future runs.
-		//   - reachable base: bump only if files under the project's path
-		//     changed in base..head.
-		if base == "" {
-			changed[name] = changedProject{version: bumpFrom, base: "", reason: ReasonInitial}
+		if ts.reachBase == "" {
+			reason := ReasonInitial
+			if ts.latest != "" {
+				reason = ReasonOrphaned
+			}
+			changed[name] = changedProject{version: bumpFrom, base: "", reason: reason}
 			continue
 		}
-		direct, all, err := ListProjectsChangedBetweenCommits(base, head)
+
+		direct, all, err := ListProjectsChangedBetweenCommits(ts.reachBase, head)
 		if err != nil {
 			return nil, err
 		}
@@ -124,38 +156,41 @@ func (b *VersionBumper) BumpProjects(
 		if direct[name] {
 			reason = ReasonCommits
 		}
-		changed[name] = changedProject{version: bumpFrom, base: base, reason: reason}
+		changed[name] = changedProject{version: bumpFrom, base: ts.reachBase, reason: reason}
 	}
 
-	// Mark projects as changed when preRelease is false and the latest tag of
-	// a project is a pre-release tag (promotion). The changelog range is
-	// widened to the last reachable *stable* tag (when one exists) so the
-	// promotion entry collects every commit that landed across the prerelease
-	// cycle rather than just whatever came after the most recent rc tag.
+	// Promotion: when doing a stable release, projects whose latest tag is a
+	// prerelease get promoted regardless of file changes. The changelog range
+	// is widened to the last reachable stable tag so the entry collects every
+	// commit from the prerelease cycle.
 	if !preRelease {
-		for name, version := range projectToLatest {
-			if _, ok := changed[name]; ok {
+		for name := range p {
+			ts := tags[name]
+			if ts.latest == "" || semver.Prerelease(ts.latest) == "" {
 				continue
 			}
-			if semver.Prerelease(version) == "" {
-				continue
-			}
-			base, err := latestStableReachableBase(cfg, projectToTags[p[name]], name, head)
+			base, err := latestStableReachableBase(cfg, rawTags[p[name]], name, head)
 			if err != nil {
 				return nil, err
 			}
 			if base == "" {
-				// Fall back to the prerelease tag's base if no stable tag is
-				// reachable (first-ever stable release after a prerelease run).
-				base, err = reachableBase(name)
-				if err != nil {
-					return nil, err
-				}
+				base = ts.reachBase
 			}
-			changed[name] = changedProject{version: version, base: base, reason: ReasonPromotion}
+			changed[name] = changedProject{version: ts.latest, base: base, reason: ReasonPromotion}
 		}
 	}
 
+	return changed, nil
+}
+
+// computeResults derives bump kind and new version for each changed project.
+func computeResults(
+	changed map[string]changedProject,
+	p map[string]projects.Project,
+	kindOverride *BumpKind,
+	preRelease bool,
+	head string,
+) ([]BumpResult, error) {
 	results := make([]BumpResult, 0, len(changed))
 	for name, info := range changed {
 		proj, ok := p[name]

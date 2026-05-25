@@ -91,6 +91,19 @@ func TestRender_InitialFallback(t *testing.T) {
 	}
 }
 
+func TestRender_OrphanedFallback(t *testing.T) {
+	e := Entry{
+		NewVersion: "v1.1.0-rc.1",
+		Date:       time.Now(),
+		Reason:     versioning.ReasonOrphaned,
+		Commits:    nil,
+	}
+	out := Render(e)
+	if !strings.Contains(out, "Re-anchored after history change") {
+		t.Errorf("expected orphaned fallback, got: %s", out)
+	}
+}
+
 func TestRender_OnlyNonConventional(t *testing.T) {
 	e := Entry{
 		NewVersion: "v0.0.2",

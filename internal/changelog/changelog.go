@@ -129,6 +129,8 @@ func renderFallback(e Entry) string {
 		}
 	case versioning.ReasonInitial:
 		line = "Initial release"
+	case versioning.ReasonOrphaned:
+		line = "Re-anchored after history change"
 	default:
 		line = "Updated internal dependencies"
 	}

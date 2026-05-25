@@ -289,4 +289,110 @@ func TestBumpProjectsHandlesUnreachableLatestTag(t *testing.T) {
 	if len(apiResult.Commits) != 0 {
 		t.Errorf("Commits = %d, want 0 (no reachable base)", len(apiResult.Commits))
 	}
+	if apiResult.Reason != ReasonOrphaned {
+		t.Errorf("Reason = %q, want %q", apiResult.Reason, ReasonOrphaned)
+	}
+}
+
+// TestBumpProjectsPromotesUnreachablePrerelease covers the case where a
+// project's latest tag is a prerelease on an orphaned branch. With
+// preRelease=false the promotion pass should override the orphaned reason
+// and produce a stable release.
+func TestBumpProjectsPromotesUnreachablePrerelease(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available on PATH")
+	}
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, out)
+		}
+	}
+	run("init", "-q", "-b", "main")
+	run("config", "user.email", "test@example.com")
+	run("config", "user.name", "Test")
+	run("config", "commit.gpgsign", "false")
+	run("config", "tag.gpgsign", "false")
+
+	apiDir := filepath.Join(dir, "apps", "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	run("add", ".")
+	run("commit", "-q", "-m", "chore: init api")
+
+	// Create a side branch with the prerelease tag (unreachable from main).
+	run("checkout", "-q", "-b", "feature")
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte("package main // rc\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	run("add", ".")
+	run("commit", "-q", "-m", "feat: rc work")
+	run("tag", "api/v1.0.0-rc.1")
+
+	// Back to main with new work.
+	run("checkout", "-q", "main")
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte("package main // mainline\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	run("add", ".")
+	run("commit", "-q", "-m", "feat: mainline work")
+
+	// Second project to keep multi-project tag scheme.
+	webDir := filepath.Join(dir, "apps", "web")
+	if err := os.MkdirAll(webDir, 0o755); err != nil {
+		t.Fatalf("mkdir web: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(webDir, "index.js"), []byte("// web\n"), 0o644); err != nil {
+		t.Fatalf("write web: %v", err)
+	}
+	run("add", ".")
+	run("commit", "-q", "-m", "feat: init web")
+	run("tag", "web/v1.0.0")
+
+	api := projects.NewGoProject("api", "apps/api", true, "go")
+	web := projects.NewNodeProject("web", "apps/web", true, "node")
+	cfg := &projects.Config{Projects: map[string]projects.ProjectConfig{
+		"api": {Type: projects.ProjectTypeGo, Path: "apps/api"},
+		"web": {Type: projects.ProjectTypeNode, Path: "apps/web"},
+	}}
+	app.Init(cfg, map[string]projects.Project{"api": api, "web": web})
+
+	head, err := git.GetHead()
+	if err != nil {
+		t.Fatalf("GetHead: %v", err)
+	}
+
+	b := NewBumper()
+	results, err := b.BumpProjects(app.State.Projects, nil, false, head)
+	if err != nil {
+		t.Fatalf("BumpProjects: %v", err)
+	}
+
+	var apiResult *BumpResult
+	for i := range results {
+		if results[i].Project.Name() == "api" {
+			apiResult = &results[i]
+			break
+		}
+	}
+	if apiResult == nil {
+		t.Fatalf("no result for api: %+v", results)
+	}
+	if apiResult.Reason != ReasonPromotion {
+		t.Errorf("Reason = %q, want %q (promotion should override orphaned)", apiResult.Reason, ReasonPromotion)
+	}
+	if apiResult.OldVersion != "v1.0.0-rc.1" {
+		t.Errorf("OldVersion = %q, want v1.0.0-rc.1", apiResult.OldVersion)
+	}
+	if apiResult.NewVersion != "v1.0.0" {
+		t.Errorf("NewVersion = %q, want v1.0.0", apiResult.NewVersion)
+	}
 }
