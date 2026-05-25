@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.6](https://github.com/ArnoldVanN/monotrack/compare/v0.9.5...v0.9.6) (2026-05-25)
+
+
+### Bug Fixes
+
+* correctly handle orphaned tags, refactor BumpProjects ([380738e](https://github.com/ArnoldVanN/monotrack/commit/380738e030a2b50ff9ae621c515953a11cf46ca0))
+
 ## [0.9.5](https://github.com/ArnoldVanN/monotrack/compare/v0.9.4...v0.9.5) (2026-05-25)
 
 
