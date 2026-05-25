@@ -151,6 +151,37 @@ projects:
     path: packages/nested-shared
 ```
 
+### Ignoring paths
+
+Each project can define an `ignore` list to exclude files from change detection. Patterns use `.gitignore`-style glob syntax relative to the project's `path`, with `**` for recursive matching. Prefix a pattern with `!` to negate it (re-include). When multiple patterns match, the last one wins.
+
+```yaml
+projects:
+  api:
+    type: go
+    path: apps/api
+    build:
+      entrypoint: true
+    ignore:
+      - "docs/**"
+      - "**/*_test.go"
+      - "!tests/integration/**"   # re-include integration tests
+```
+
+To use as an include-only list (ignore everything except specific paths):
+
+```yaml
+  web:
+    type: node
+    path: apps/web
+    build:
+      entrypoint: true
+    ignore:
+      - "**"            # ignore everything...
+      - "!src/**"       # ...except src
+      - "!package.json" # ...and package.json
+```
+
 An update to a file in the `packages/nested-shared` package will result in the following output:
 ```bash
 monotrack compare --head 34c2818
