@@ -483,5 +483,9 @@ func bumpVersion(version string, kind BumpKind, preRelease bool) (string, error)
 		newVersion = fmt.Sprintf("%s-%s", newVersion, pre)
 	}
 
+	if !semver.IsValid(newVersion) {
+		return "", fmt.Errorf("bumpVersion produced non-semver result %q", newVersion)
+	}
+
 	return newVersion, nil
 }

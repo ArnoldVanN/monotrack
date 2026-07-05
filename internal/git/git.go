@@ -346,6 +346,79 @@ func GetBase(tag string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
+func GetCommitMessage(ref string) (string, error) {
+	cmd := exec.Command("git", "log", "-1", "--format=%B", ref)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("git log --format=%%B %s failed: %s: %w", ref, out, err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+func DeleteRemoteTag(tag string) error {
+	cmd := exec.Command("git", "push", "origin", ":refs/tags/"+tag)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git push origin :refs/tags/%s failed: %s: %w", tag, out, err)
+	}
+	return nil
+}
+
+// tagDeleteChunk bounds how many tags are passed to a single git invocation so
+// we don't blow the OS argument limit when pruning hundreds of tags.
+const tagDeleteChunk = 100
+
+// DeleteLocalTags removes the given local tags in chunked `git tag -d` calls.
+func DeleteLocalTags(tags []string) error {
+	for chunk := range chunked(tags, tagDeleteChunk) {
+		args := append([]string{"tag", "-d"}, chunk...)
+		cmd := exec.Command("git", args...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("git tag -d failed: %s: %w", out, err)
+		}
+	}
+	return nil
+}
+
+// DeleteRemoteTags deletes the given tags on origin in chunked
+// `git push origin --delete` calls.
+func DeleteRemoteTags(tags []string) error {
+	for chunk := range chunked(tags, tagDeleteChunk) {
+		refs := make([]string, 0, len(chunk))
+		for _, t := range chunk {
+			refs = append(refs, "refs/tags/"+t)
+		}
+		args := append([]string{"push", "origin", "--delete"}, refs...)
+		cmd := exec.Command("git", args...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("git push origin --delete failed: %s: %w", out, err)
+		}
+	}
+	return nil
+}
+
+func chunked(items []string, size int) func(func([]string) bool) {
+	return func(yield func([]string) bool) {
+		for i := 0; i < len(items); i += size {
+			end := min(i+size, len(items))
+			if !yield(items[i:end]) {
+				return
+			}
+		}
+	}
+}
+
+func ResetHard(ref string) error {
+	cmd := exec.Command("git", "reset", "--hard", ref)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git reset --hard %s failed: %s: %w", ref, out, err)
+	}
+	return nil
+}
+
 // IsAncestor reports whether commit is an ancestor of head.
 func IsAncestor(commit, head string) (bool, error) {
 	cmd := exec.Command("git", "merge-base", "--is-ancestor", commit, head)

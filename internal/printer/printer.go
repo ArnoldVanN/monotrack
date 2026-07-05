@@ -18,4 +18,14 @@ type BumpOutput struct {
 	PRUrl  string `json:"prUrl,omitempty"`
 }
 
+// PruneOutput is one tag selected for (or deleted by) a prune run.
+type PruneOutput struct {
+	Project string `json:"project"`
+	Tag     string `json:"tag"`
+	Version string `json:"version"`
+	// Deleted is true when the tag was actually removed (--apply), false on a
+	// dry run.
+	Deleted bool `json:"deleted"`
+}
+
 // TODO: actual printer interface

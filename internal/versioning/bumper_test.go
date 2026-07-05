@@ -10,6 +10,7 @@ import (
 	"github.com/arnoldvann/monotrack/internal/app"
 	"github.com/arnoldvann/monotrack/internal/git"
 	"github.com/arnoldvann/monotrack/internal/projects"
+	"golang.org/x/mod/semver"
 )
 
 func TestBumpVersion(t *testing.T) {
@@ -49,6 +50,40 @@ func TestBumpVersion(t *testing.T) {
 				t.Errorf("bumpVersion(%q, %q, %v) = %q, want %q", tt.in, tt.kind, tt.preRelease, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestBumpVersionAlwaysSemverCompliant asserts every generated version is a
+// SemVer 2.0 string
+func TestBumpVersionAlwaysSemverCompliant(t *testing.T) {
+	cases := []struct {
+		in   string
+		kind BumpKind
+		pre  bool
+	}{
+		{"v0.0.0", PatchBump, true},
+		{"v1.2.3", MajorBump, false},
+		{"v1.3.0-rc.9", MinorBump, true},
+		{"v1.3.0-rc.99", PatchBump, true},
+		{"v2.0.0-rc.1", MinorBump, false},
+	}
+	for _, c := range cases {
+		got, err := bumpVersion(c.in, c.kind, c.pre)
+		if err != nil {
+			t.Fatalf("bumpVersion(%q, %q, %v): %v", c.in, c.kind, c.pre, err)
+		}
+		if !semver.IsValid(got) {
+			t.Errorf("bumpVersion(%q, %q, %v) = %q, not spec-valid semver", c.in, c.kind, c.pre, got)
+		}
+	}
+
+	// Double-digit rc increment must be dotted (rc.10, not rc10) so it sorts
+	// above rc.9 rather than lexically below rc.2.
+	if got, err := bumpVersion("v1.3.0-rc.9", PatchBump, true); err != nil || got != "v1.3.0-rc.10" {
+		t.Errorf("bumpVersion(v1.3.0-rc.9) = %q, %v; want v1.3.0-rc.10", got, err)
+	}
+	if semver.Compare("v1.3.0-rc.9", "v1.3.0-rc.10") >= 0 {
+		t.Errorf("rc.9 should sort below rc.10")
 	}
 }
 

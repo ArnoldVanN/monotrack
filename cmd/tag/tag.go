@@ -10,6 +10,8 @@ func init() {
 	TagCmd.AddCommand(listCmd)
 	TagCmd.AddCommand(getCmd)
 	TagCmd.AddCommand(bumpCmd)
+	TagCmd.AddCommand(undoCmd)
+	TagCmd.AddCommand(pruneCmd)
 }
 
 var (

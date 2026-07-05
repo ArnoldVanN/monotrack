@@ -344,6 +344,38 @@ For a `--dry` invocation that only computes the project matrix and doesn't push 
 > [!TIP]  
 > For a full working example, see the [testing repo](https://github.com/ArnoldVanN/monotrack-testing)
 
+### Scheduled pruning
+Run [`tag prune`](#prune-stale-prerelease-tags) on a schedule to keep prerelease tags from accumulating. The job needs `contents: write` (to delete tags on origin) and a full-history checkout (`fetch-depth: 0`).
+
+```yaml
+name: prune-tags
+on:
+  schedule:
+    - cron: "0 3 * * 0"   # weekly, Sundays 03:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0                       # Required: prune needs full history + tags
+
+      - name: Prune stale prerelease tags
+        uses: arnoldvann/monotrack@v0
+        with:
+          command: tag prune
+          args: --apply                        # omit --apply to only log the plan
+          config: monotrack.yaml
+```
+
+> [!TIP]
+> Leave off `--apply` on the first run (or trigger via `workflow_dispatch`) to review the plan before anything is deleted. If your tags are split across multiple configs, add one step per config.
+
 ## CLI
 
 ## Installation
@@ -431,7 +463,35 @@ api/v0.0.1
 shared-pkg/v0.0.1
 ```
 
+#### Prune stale prerelease tags
+Prerelease tags accumulate quickly: a project cutting an RC on every staging build can leave hundreds of `-rc.N` tags behind, which bloats `git fetch` and clutters `git tag`. `monotrack tag prune` deletes the stale ones while keeping everything that still matters.
+
+Deleting stale RCs is safe for version numbering: once a project's latest tag is stable (e.g. `api/v0.2.0`), the next bump is computed from that stable tag, never from the RCs below it.
+
+`prune` is a **dry run by default** — it prints what it *would* delete and changes nothing. Pass `--apply` to actually delete:
+```bash
+# preview (deletes nothing)
+monotrack tag prune
+would delete 3 tag(s):
+api/v0.1.0-rc.1
+api/v0.2.0-rc.1
+api/v0.2.0-rc.2
+
+# actually delete, on origin and locally
+monotrack tag prune --apply
+```
+
+| Flag | Default | Effect |
+|------|---------|--------|
+| `--apply` | `false` | Actually delete. Without it, prune only prints the plan. |
+| `--remote` | `true` | Delete matching tags on `origin`. |
+| `--local` | `true` | Delete matching local tags. |
+| `-o json` | — | Emit the plan as JSON (`{project, tag, version, deleted}`). |
+
+See [Scheduled pruning](#scheduled-pruning) for running this automatically.
+
 # TODO
 - [ ] Dynamically generate `monotrack.yaml`  
 - [ ] Sort outputs alphabetically
 - [ ] For helm, update versions in each Chart.yaml `version`, and detect umbrella charts in order to update `dependencies[n].version` in the parent
+- [ ] Changelog: List each internal dep thats been updated instead of "- Updated internal dependencies"
