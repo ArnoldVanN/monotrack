@@ -114,11 +114,9 @@ var (
 	}
 )
 
-/*
-Get changed projects.
-Expects a map of projects to versions.
-Returns a map of all projects including dependencies and whether they changed
-*/
+// Get changed projects.
+// Expects a map of projects to versions.
+// Returns a map of all projects including dependencies and whether they changed
 func getChangedProjects(p map[string]string, head string) (map[string]bool, error) {
 	baseCommits := make(map[string]string)
 
@@ -131,15 +129,23 @@ func getChangedProjects(p map[string]string, head string) (map[string]bool, erro
 		baseCommits[proj] = base
 	}
 
+	changedByBase := make(map[string]map[string]bool)
 	allProjects := make(map[string]bool, 0)
 
-	for _, c := range baseCommits {
-		_, pr, err := versioning.ListProjectsChangedBetweenCommits(c, head)
-		if err != nil {
-			return nil, err
+	for proj, c := range baseCommits {
+		pr, ok := changedByBase[c]
+		if !ok {
+			_, all, err := versioning.ListProjectsChangedBetweenCommits(c, head)
+			if err != nil {
+				return nil, err
+			}
+			changedByBase[c] = all
+			pr = all
 		}
 
-		maps.Copy(allProjects, pr)
+		if pr[proj] {
+			allProjects[proj] = true
+		}
 	}
 
 	return allProjects, nil
