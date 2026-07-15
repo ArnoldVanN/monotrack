@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.7](https://github.com/ArnoldVanN/monotrack/compare/v0.9.6...v0.9.7) (2026-07-15)
+
+
+### Features
+
+* prune and undo commands ([ff8bc56](https://github.com/ArnoldVanN/monotrack/commit/ff8bc56cb8fee32a82a898ae9322987cd2e17cca))
+
+
+### Bug Fixes
+
+* **compare:** only flag projects from their own tag diff range ([6a1b564](https://github.com/ArnoldVanN/monotrack/commit/6a1b56406ff4ec34271c6d1318156c3ae628b5c9))
+
 ## [0.9.6](https://github.com/ArnoldVanN/monotrack/compare/v0.9.5...v0.9.6) (2026-05-25)
 
 
