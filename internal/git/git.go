@@ -32,6 +32,67 @@ func GitDiff(base string, head string) ([]string, error) {
 	return lines, nil
 }
 
+// DiffWorkingTree returns paths differing between rev and the working tree,
+// staged or not. Untracked files are included
+func DiffWorkingTree(rev string) ([]string, error) {
+	path, err := GetRepoRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	tracked, err := runLines(exec.Command("git", "-C", path, "diff", rev, "--name-only"))
+	if err != nil {
+		return nil, fmt.Errorf("git diff %s failed: %w", rev, err)
+	}
+
+	untracked, err := runLines(exec.Command("git", "-C", path, "ls-files", "--others", "--exclude-standard"))
+	if err != nil {
+		return nil, fmt.Errorf("git ls-files failed: %w", err)
+	}
+
+	seen := make(map[string]struct{}, len(tracked)+len(untracked))
+	out := make([]string, 0, len(tracked)+len(untracked))
+	for _, l := range append(tracked, untracked...) {
+		if _, ok := seen[l]; ok {
+			continue
+		}
+		seen[l] = struct{}{}
+		out = append(out, l)
+	}
+	return out, nil
+}
+
+func runLines(cmd *exec.Cmd) ([]string, error) {
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", err, out)
+	}
+	trimmed := strings.TrimSpace(string(out))
+	if trimmed == "" {
+		return nil, nil
+	}
+	return strings.Split(trimmed, "\n"), nil
+}
+
+// DefaultBranch resolves the remote's default branch (e.g. "origin/main") from
+// origin/HEAD, falling back to origin/main then origin/master.
+func DefaultBranch() (string, error) {
+	out, err := exec.Command("git", "symbolic-ref", "--short", "refs/remotes/origin/HEAD").CombinedOutput()
+	if err == nil {
+		if ref := strings.TrimSpace(string(out)); ref != "" {
+			return ref, nil
+		}
+	}
+
+	for _, candidate := range []string{"origin/main", "origin/master"} {
+		if err := exec.Command("git", "rev-parse", "--verify", "--quiet", candidate).Run(); err == nil {
+			return candidate, nil
+		}
+	}
+
+	return "", fmt.Errorf("could not determine the default branch (origin/HEAD is unset and neither origin/main nor origin/master exist); pass --base explicitly")
+}
+
 func GetRepoRoot() (string, error) {
 	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
 
@@ -417,6 +478,15 @@ func ResetHard(ref string) error {
 		return fmt.Errorf("git reset --hard %s failed: %s: %w", ref, out, err)
 	}
 	return nil
+}
+
+// MergeBase returns the best common ancestor of base and head
+func MergeBase(base, head string) (string, error) {
+	out, err := exec.Command("git", "merge-base", base, head).CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("git merge-base %s %s failed: %w: %s", base, head, err, out)
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 // IsAncestor reports whether commit is an ancestor of head.

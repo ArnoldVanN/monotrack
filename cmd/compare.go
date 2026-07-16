@@ -17,18 +17,51 @@ import (
 )
 
 func init() {
+	compareCmd.Flags().BoolVar(&unreleased, "unreleased", false, "list projects with changes since their own latest tag, instead of comparing a base..head range")
 	rootCmd.AddCommand(compareCmd)
 }
 
 var (
+	unreleased bool
+
 	compareCmd = &cobra.Command{
 		Use:   "compare",
-		Short: "List which projects changed between their latest tag and the specified commit",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			head := cmd.InheritedFlags().Lookup("head")
+		Short: "List which projects changed between a base and a head",
+		Long: `List which projects changed between a base and a head.
 
-			if head.Value.String() == "" {
-				return fmt.Errorf("missing head SHA")
+By default the range runs from the default branch to your working tree,
+including uncommitted and untracked (non-ignored) files:
+
+  monotrack compare                        # origin/main -> working tree
+  monotrack compare --base origin/feat-x   # unpushed work vs your remote branch
+  monotrack compare --base <sha> --head <sha>
+
+The base is anchored at its merge base with the head, so commits landed on the
+base branch after you diverged are not reported as your changes.
+
+--unreleased instead reports, per project, whether it changed since its own
+latest tag. "what has not been released yet" instead of "what did this range
+touch".`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			headFlag := cmd.InheritedFlags().Lookup("head")
+			base := cmd.InheritedFlags().Lookup("base")
+
+			if !unreleased {
+				changes, err := compareRange(base.Value.String(), headFlag.Value.String())
+				if err != nil {
+					return err
+				}
+				return emitChanged(changes)
+			}
+
+			// Same default as `tag bump`: measure up to the current commit.
+			head := headFlag.Value.String()
+			if head == "" {
+				h, err := git.GetHead()
+				if err != nil {
+					return err
+				}
+				head = h
 			}
 
 			projectToTags, err := git.GetTagsForProjects(app.State.Config, app.State.Projects)
@@ -47,7 +80,7 @@ var (
 			// when the absolute latest is orphan-tagged the diff range explodes,
 			// so we fall back to the highest reachable tag (or to "no base" if
 			// none, treating the project as freshly-bootstrapped).
-			projectToLatest, err := utils.GetLatestReachableTagPerProject(app.State.Config, projectToTags, head.Value.String())
+			projectToLatest, err := utils.GetLatestReachableTagPerProject(app.State.Config, projectToTags, head)
 			if err != nil {
 				return err
 			}
@@ -70,7 +103,7 @@ var (
 				zeroTagProjects[name] = true
 			}
 
-			changes, err := getChangedProjects(projectToLatest, head.Value.String())
+			changes, err := getChangedProjects(projectToLatest, head)
 			if err != nil {
 				return err
 			}
@@ -78,41 +111,90 @@ var (
 			// assume project has changed if it doesnt have tags yet
 			maps.Copy(changes, zeroTagProjects)
 
-			changedProjects := make(map[string]projects.ProjectConfig)
-			for n := range changes {
-				proj, ok := app.State.Config.Projects[n]
-				if !ok {
-					return fmt.Errorf("invalid project name: %q", n)
-				}
-				changedProjects[n] = proj
-			}
-
-			if out == "json" {
-				o := make([]printer.Output, 0, len(changedProjects))
-
-				for k, v := range changedProjects {
-					o = append(o, printer.Output{
-						Name: k,
-						Path: v.Path,
-						Type: string(v.Type),
-					})
-				}
-
-				b, err := json.Marshal(o)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				fmt.Println(string(b))
-			} else {
-				for k := range changedProjects {
-					fmt.Printf("%s\n", k)
-				}
-			}
-			return nil
+			return emitChanged(changes)
 		},
 	}
 )
+
+// emitChanged renders the changed set in the requested output format.
+func emitChanged(changes map[string]bool) error {
+	changedProjects := make(map[string]projects.ProjectConfig)
+	for n := range changes {
+		proj, ok := app.State.Config.Projects[n]
+		if !ok {
+			return fmt.Errorf("invalid project name: %q", n)
+		}
+		changedProjects[n] = proj
+	}
+
+	if out == "json" {
+		o := make([]printer.Output, 0, len(changedProjects))
+
+		for k, v := range changedProjects {
+			o = append(o, printer.Output{
+				Name: k,
+				Path: v.Path,
+				Type: string(v.Type),
+			})
+		}
+
+		b, err := json.Marshal(o)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Println(string(b))
+	} else {
+		for k := range changedProjects {
+			fmt.Printf("%s\n", k)
+		}
+	}
+	return nil
+}
+
+// compareRange flags projects that changed between base and head, plus their
+// transitive dependents. Empty base means the default branch; empty head means
+// the working tree. The base is anchored at its merge base with head, so the
+// base branch's own later commits aren't attributed to head.
+func compareRange(base, head string) (map[string]bool, error) {
+	if base == "" {
+		b, err := git.DefaultBranch()
+		if err != nil {
+			return nil, err
+		}
+		base = b
+	}
+
+	// The working tree hangs off HEAD.
+	headRev := head
+	if headRev == "" {
+		headRev = "HEAD"
+	}
+	mergeBase, err := git.MergeBase(base, headRev)
+	if err != nil {
+		return nil, err
+	}
+
+	var diff []string
+	if head == "" {
+		diff, err = git.DiffWorkingTree(mergeBase)
+	} else {
+		diff, err = git.GitDiff(mergeBase, head)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	_, all := versioning.ListProjectsChangedInDiff(diff)
+
+	changed := make(map[string]bool, len(all))
+	for name := range app.State.Projects {
+		if all[name] {
+			changed[name] = true
+		}
+	}
+	return changed, nil
+}
 
 // Get changed projects.
 // Expects a map of projects to versions.

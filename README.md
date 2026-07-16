@@ -121,7 +121,7 @@ projects:
     type: node
     path: apps/web
     build:
-      entrypoint: true # Only entrypoints will be included in tag bumps
+      entrypoint: true # Only entrypoints are reported by `compare` and bumped by `tag bump`
     dependsOn:
       - ui
   docs:
@@ -182,15 +182,15 @@ To use as an include-only list (ignore everything except specific paths):
       - "!package.json" # ...and package.json
 ```
 
-An update to a file in the `packages/nested-shared` package will result in the following output:
+An edit to a file in the `packages/nested-shared` package bubbles up through `go-shared` to `api`:
 ```bash
-monotrack compare --head 34c2818
+monotrack compare
 api
-nested-shared
-go-shared
 ```
 
-Or, when bumping, since only entrypoints are bumped:
+Only entrypoints are ever listed. `nested-shared` and `go-shared` are internal dependencies: a change in them propagates to the entrypoints that depend on them, but they are never reported themselves. `web` and `docs` are untouched here because they depend on `ui`, not on `go-shared`.
+
+Bumping tags the same project:
 ```bash
 monotrack tag bump --dry
 api/v0.0.2
@@ -229,7 +229,7 @@ The example above yields tags like `api@1.2.3`. Tag parsing uses the same scheme
 
 ### `base`
 
-**Optional** The base SHA used to compare. Will use the commit referenced in the latest tag if unspecified.
+**Optional** The base SHA used to compare. When unspecified, it is inferred from the event payload (`push` uses `.before`, `pull_request` uses the base SHA). Used by `compare`; `tag bump` ignores it and always measures from each project's own latest tag.
 
 ### `head`
 
@@ -396,7 +396,7 @@ mv monotrack /usr/local/bin/
 
 1. Run `monotrack init` to create a template configuration (`monotrack.yaml`) and an empty `.monotrack-manifest.yaml`. The manifest is read/written by the PR-based release flow; commit it to version control so CI runs can read it across jobs.
 2. Edit the config file to match your actual paths and dependencies.
-3. Run `monotrack compare --head <HEAD>` to list packages that changed
+3. Run `monotrack compare` to list the projects you've changed against the default branch
 
 ### Examples
 
@@ -431,6 +431,40 @@ monotrack tag bump --component minor
 frontend/v0.1.0
 api/v0.1.0
 ```
+
+#### List which projects changed (`compare`)
+
+By default `compare` runs from the default branch (`origin/HEAD`, falling back to `origin/main`) to your **working tree**, so uncommitted edits and new untracked files count. `.gitignore` is respected.
+
+```bash
+# which entrypoints have I affected, right now, versus the default branch?
+monotrack compare
+api
+web
+```
+
+The base is anchored at its merge base with the head, so commits that landed on the base branch after you diverged are not reported as your changes. Pass any revision — a branch, tag or SHA:
+
+```bash
+# unpushed work vs your remote branch
+monotrack compare --base origin/feat-x
+
+# an explicit range; this is what CI passes
+monotrack compare --base 34c2818 --head 8a059ec -o json
+[{"name":"api","path":"apps/api","type":"go"}]
+```
+
+`--unreleased` asks a different question: per project, has anything changed since **its own latest tag** — i.e. what is not released yet, rather than what this range touched.
+
+```bash
+monotrack compare --unreleased
+api
+frontend
+```
+
+This measures to the current commit by default; pass `--head <sha>` to measure to a different one.
+
+Use `--unreleased` for "what needs releasing", and the default range mode for "what does this branch/PR affect". Reaching for `--unreleased` in PR CI will flag everything merged to the base branch since the last release, not just the PR's own changes.
 
 #### Output as json
 ```bash

@@ -18,6 +18,13 @@ func ListProjectsChangedBetweenCommits(base string, head string) (map[string]boo
 		return nil, nil, err
 	}
 
+	direct, all := ListProjectsChangedInDiff(diff)
+	return direct, all, nil
+}
+
+// ListProjectsChangedInDiff maps changed file paths onto projects. Same
+// contract as ListProjectsChangedBetweenCommits, for callers holding a diff.
+func ListProjectsChangedInDiff(diff []string) (map[string]bool, map[string]bool) {
 	reverseDeps := make(map[string]map[string]struct{})
 	for n, p := range app.State.Config.Projects {
 		for _, d := range p.DependsOn {
@@ -70,7 +77,7 @@ func ListProjectsChangedBetweenCommits(base string, head string) (map[string]boo
 		collectParents(name, reverseDeps, all)
 	}
 
-	return direct, all, nil
+	return direct, all
 }
 
 // isIgnored evaluates the ignore patterns (relative to projectPath) against
