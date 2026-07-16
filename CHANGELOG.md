@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.8](https://github.com/ArnoldVanN/monotrack/compare/v0.9.7...v0.9.8) (2026-07-16)
+
+
+### Bug Fixes
+
+* **compare:** bound the diff by --base instead of each project's latest tag ([a2af992](https://github.com/ArnoldVanN/monotrack/commit/a2af992458af4670dd341dd64d79c2e67dfecfb7))
+
 ## [0.9.7](https://github.com/ArnoldVanN/monotrack/compare/v0.9.6...v0.9.7) (2026-07-15)
 
 
