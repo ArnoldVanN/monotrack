@@ -529,3 +529,4 @@ See [Scheduled pruning](#scheduled-pruning) for running this automatically.
 - [ ] Sort outputs alphabetically
 - [ ] For helm, update versions in each Chart.yaml `version`, and detect umbrella charts in order to update `dependencies[n].version` in the parent
 - [ ] Changelog: List each internal dep thats been updated instead of "- Updated internal dependencies"
+- [ ] Replace the `gh` shell-outs in `internal/forge/github.go` with go-github or direct REST, so PR commands work on runners without the GitHub CLI
