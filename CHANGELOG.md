@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.9](https://github.com/ArnoldVanN/monotrack/compare/v0.9.8...v0.9.9) (2026-08-18)
+
+
+### Bug Fixes
+
+* **action:** gh dep not available on self-hosted runners ([bc5302b](https://github.com/ArnoldVanN/monotrack/commit/bc5302b1b1daea06a1e82708f30e570b85fce1a4))
+
 ## [0.9.8](https://github.com/ArnoldVanN/monotrack/compare/v0.9.7...v0.9.8) (2026-07-16)
 
 
