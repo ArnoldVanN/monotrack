@@ -219,6 +219,21 @@ tags:
 
 The example above yields tags like `api@1.2.3`. Tag parsing uses the same scheme, so existing tags from a previous scheme won't be picked up after a change — bump or migrate explicitly.
 
+### Multiple configs in one repo
+
+A repo can run several monotrack configs at once (for example one for apps and one for Helm charts), each with its own `-f` config, `-m` manifest, and `release.branch`. Their release commits and PR titles are identical, so a top-level `name` exists to tell them apart:
+
+```yaml
+name: charts
+projects:
+  charts/api:
+    type: helm
+    path: infra/charts/api
+```
+
+Release commits and PR titles from that config read `chore(release): bump 3 project(s) [charts]`.
+`tag undo` reads the label back and refuses to run when it doesn't match the loaded config, since tags are derived from the loaded config.
+
 ## Action
 
 ## Inputs

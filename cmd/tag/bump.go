@@ -131,7 +131,7 @@ func runDirectBump(cmd *cobra.Command, head string, jsonOut bool) error {
 	}
 
 	if commitChangelog && len(writtenPaths) > 0 {
-		msg := buildReleaseMessage(results)
+		msg := buildReleaseMessage(results, app.State.Config.Name)
 		if dry {
 			fmt.Fprintln(os.Stderr, "--- would commit ---")
 			fmt.Fprintln(os.Stderr, msg)
@@ -209,7 +209,7 @@ func runProposePhase(cmd *cobra.Command, head, baseBranch, manifestPath string, 
 	files = dedupe(files)
 
 	releaseBranch := resolveReleaseBranch(baseBranch)
-	msg := buildReleaseMessage(results)
+	msg := buildReleaseMessage(results, app.State.Config.Name)
 	if err := bumper.FinalizePropose(releaseBranch, baseBranch, msg, files); err != nil {
 		return err
 	}
@@ -266,7 +266,7 @@ func ensurePR(head, base string, results []versioning.BumpResult) (string, error
 	if err != nil {
 		return "", err
 	}
-	title, body := buildPRTitleBody(results)
+	title, body := buildPRTitleBody(results, app.State.Config.Name)
 	res, err := f.EnsurePR(context.Background(), forge.PRRequest{
 		Base: base, Head: head, Title: title, Body: body,
 	})
@@ -283,8 +283,8 @@ func ensurePR(head, base string, results []versioning.BumpResult) (string, error
 	return res.URL, nil
 }
 
-func buildPRTitleBody(results []versioning.BumpResult) (string, string) {
-	title := fmt.Sprintf("chore(release): bump %d project(s)", len(results))
+func buildPRTitleBody(results []versioning.BumpResult, name string) (string, string) {
+	title := releaseSubject(len(results), name)
 	sorted := make([]versioning.BumpResult, len(results))
 	copy(sorted, results)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Project.Name() < sorted[j].Project.Name() })
@@ -431,14 +431,25 @@ func dedupe(in []string) []string {
 	return out
 }
 
-func buildReleaseMessage(results []versioning.BumpResult) string {
+// releaseSubject appends the config name so release commits and PR titles from
+// different monotrack configs in one repo stay distinguishable. undo reads the
+// label back, so keep the format in sync with releaseCommitName.
+func releaseSubject(n int, name string) string {
+	subject := fmt.Sprintf("chore(release): bump %d project(s)", n)
+	if name != "" {
+		subject += fmt.Sprintf(" [%s]", name)
+	}
+	return subject
+}
+
+func buildReleaseMessage(results []versioning.BumpResult, name string) string {
 	sorted := make([]versioning.BumpResult, len(results))
 	copy(sorted, results)
 	sort.Slice(sorted, func(i, j int) bool {
 		return sorted[i].Project.Name() < sorted[j].Project.Name()
 	})
 
-	subject := fmt.Sprintf("chore(release): bump %d project(s)", len(sorted))
+	subject := releaseSubject(len(sorted), name)
 
 	var body strings.Builder
 	for _, r := range sorted {

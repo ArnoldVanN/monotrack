@@ -34,12 +34,39 @@ type releaseEntry struct {
 	tag        string
 }
 
-func parseReleaseCommit(message string, tagFor func(string, string) string) ([]releaseEntry, error) {
+// releaseCommitName reads back the config label written by releaseSubject.
+func releaseCommitName(subject string) string {
+	if !strings.HasSuffix(subject, "]") {
+		return ""
+	}
+	open := strings.LastIndex(subject, "[")
+	if open < 0 {
+		return ""
+	}
+	return subject[open+1 : len(subject)-1]
+}
+
+func nameOrUnnamed(name string) string {
+	if name == "" {
+		return "the unnamed config"
+	}
+	return fmt.Sprintf("config %q", name)
+}
+
+func parseReleaseCommit(message, configName string, tagFor func(string, string) string) ([]releaseEntry, error) {
 	parts := strings.SplitN(message, "\n", 2)
 	subject := strings.TrimSpace(parts[0])
 	if !strings.HasPrefix(subject, "chore(release)") {
 		return nil, fmt.Errorf("HEAD is not a release commit (expected \"chore(release): ...\" subject)")
 	}
+
+	if got := releaseCommitName(subject); got != configName {
+		return nil, fmt.Errorf(
+			"release commit at HEAD was created by %s, but %s is loaded; re-run undo with -f pointing at that config",
+			nameOrUnnamed(got), nameOrUnnamed(configName),
+		)
+	}
+
 	if len(parts) < 2 {
 		return nil, fmt.Errorf("release commit has no body listing projects")
 	}
@@ -83,7 +110,7 @@ func runUndo(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	entries, err := parseReleaseCommit(msg, app.State.Config.TagFor)
+	entries, err := parseReleaseCommit(msg, app.State.Config.Name, app.State.Config.TagFor)
 	if err != nil {
 		return err
 	}

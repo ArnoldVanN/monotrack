@@ -9,6 +9,9 @@ import (
 )
 
 type Config struct {
+	// Name labels release commits and PR titles produced by this config, so a
+	// repo running several monotrack configs can tell them apart. Optional.
+	Name      string                   `mapstructure:"name"`
 	Projects  map[string]ProjectConfig `mapstructure:"projects"`
 	Release   ReleaseConfig            `mapstructure:"release"`
 	Tags      TagsConfig               `mapstructure:"tags"`
@@ -155,6 +158,11 @@ func (c *Config) MatchTag(tag, projectName string) (version string, ok bool) {
 }
 
 func (c *Config) Validate() error {
+	c.Name = strings.TrimSpace(c.Name)
+	if strings.ContainsAny(c.Name, "[]\n") {
+		return fmt.Errorf("name %q may not contain brackets or newlines", c.Name)
+	}
+
 	for name, pc := range c.Projects {
 		if !pc.Type.isValid() {
 			return fmt.Errorf(
