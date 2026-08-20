@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.10](https://github.com/ArnoldVanN/monotrack/compare/v0.9.9...v0.9.10) (2026-08-19)
+
+
+### Features
+
+* label release commits and PR titles with config name ([4774146](https://github.com/ArnoldVanN/monotrack/commit/4774146346df52cb4a894ae2b6b83bcc9f594086))
+
 ## [0.9.9](https://github.com/ArnoldVanN/monotrack/compare/v0.9.8...v0.9.9) (2026-08-18)
 
 
