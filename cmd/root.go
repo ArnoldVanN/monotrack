@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/arnoldvann/monotrack/cmd/deps"
 	"github.com/arnoldvann/monotrack/cmd/tag"
 	"github.com/arnoldvann/monotrack/internal/app"
 	"github.com/arnoldvann/monotrack/internal/config"
@@ -99,4 +100,5 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&head, "head", "", "head commit SHA")
 
 	rootCmd.AddCommand(tag.TagCmd)
+	rootCmd.AddCommand(deps.DepsCmd)
 }

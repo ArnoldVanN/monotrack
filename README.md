@@ -1,11 +1,11 @@
 ## Motivation
+
 While there already exist plenty of tools to help with code verisoning, support across languages, specifically for monorepos, may be considered insufficient.  
 Monotrack is a generic solution to help ease the pains of CI in a monorepo.  
 Monotrack allows you to easily run jobs, create tags, write changelogs and review these changes for projects that have actually changed,  
 while taking into consideration local internal dependency trees.
 
-> [!NOTE]
-> **Single-project repos** are supported with no extra flags. When `monotrack.yaml` defines exactly one project, monotrack switches behavior automatically: tags are emitted as `vX.Y.Z` (no `<name>/` prefix), and the project's `path` can be `.` or omitted to mean the repo root. The `CHANGELOG.md` is written at the repo root (or at `changelog.path` in the config).
+> [!NOTE] > **Single-project repos** are supported with no extra flags. When `monotrack.yaml` defines exactly one project, monotrack switches behavior automatically: tags are emitted as `vX.Y.Z` (no `<name>/` prefix), and the project's `path` can be `.` or omitted to mean the repo root. The `CHANGELOG.md` is written at the repo root (or at `changelog.path` in the config).
 
 ## Release flow
 
@@ -61,7 +61,7 @@ On the next propose run, the override is parsed and used in place of the origina
 ```yaml
 # monotrack.yaml
 release:
-  branch: "monotrack/release-{base}"   # default; {base} is replaced with the base branch
+  branch: "monotrack/release-{base}" # default; {base} is replaced with the base branch
   # or a literal like: "release-branch-pr"
 ```
 
@@ -76,6 +76,7 @@ monotrack tag bump --no-pr
 ```
 
 In `--no-pr` mode, `tag bump`:
+
 1. Writes and stages the changelog files.
 2. Creates a `chore(release): bump N project(s)` commit on top of `HEAD`.
 3. Tags the **new** commit (so the tag's tree contains its own changelog).
@@ -83,12 +84,12 @@ In `--no-pr` mode, `tag bump`:
 
 ##### When to pick which mode
 
-| Situation | Mode |
-|---|---|
-| Single-branch repo, PR is the only review surface for changes | PR mode (default) |
-| RC tags on a staging branch driven by every push | `--no-pr` |
-| Final release tags created automatically on push to a protected branch you already merge into | `--no-pr` |
-| Branch-promotion model (e.g. `main` → `production`) | `--no-pr` on both, review changelog content via the promotion PR diff |
+| Situation                                                                                     | Mode                                                                  |
+| --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Single-branch repo, PR is the only review surface for changes                                 | PR mode (default)                                                     |
+| RC tags on a staging branch driven by every push                                              | `--no-pr`                                                             |
+| Final release tags created automatically on push to a protected branch you already merge into | `--no-pr`                                                             |
+| Branch-promotion model (e.g. `main` → `production`)                                           | `--no-pr` on both, review changelog content via the promotion PR diff |
 
 `--dry` never enters the PR or tag-phase routing — it computes proposed bumps and prints them, period. Safe to use in matrix-discovery jobs regardless of which mode the non-dry job uses.
 
@@ -96,6 +97,7 @@ In `--no-pr` mode, `tag bump`:
 > Monotrack ignores commits whose subject starts with `chore(release)` when deciding which projects need a bump. This prevents the auto-generated release commit from triggering an empty re-release on the next run. Avoid using that prefix for unrelated chore commits if you want them to count toward a bump.
 
 ## Changelogs
+
 ##### Changelog format
 
 Each bumped project gets a `CHANGELOG.md` written/prepended at its project path. Entries are grouped into **Breaking Changes**, **Features**, **Bug Fixes**, **Performance**, and **Other**. A project that was bumped purely because a dependency changed gets an "Updated internal dependencies" entry.
@@ -114,7 +116,9 @@ monotrack tag bump --no-changelog
 ```
 
 ## Configuration example
+
 Given the following `monotrack.yaml`:
+
 ```yaml
 projects:
   web:
@@ -165,24 +169,25 @@ projects:
     ignore:
       - "docs/**"
       - "**/*_test.go"
-      - "!tests/integration/**"   # re-include integration tests
+      - "!tests/integration/**" # re-include integration tests
 ```
 
 To use as an include-only list (ignore everything except specific paths):
 
 ```yaml
-  web:
-    type: node
-    path: apps/web
-    build:
-      entrypoint: true
-    ignore:
-      - "**"            # ignore everything...
-      - "!src/**"       # ...except src
-      - "!package.json" # ...and package.json
+web:
+  type: node
+  path: apps/web
+  build:
+    entrypoint: true
+  ignore:
+    - "**" # ignore everything...
+    - "!src/**" # ...except src
+    - "!package.json" # ...and package.json
 ```
 
 An edit to a file in the `packages/nested-shared` package bubbles up through `go-shared` to `api`:
+
 ```bash
 monotrack compare
 api
@@ -191,6 +196,7 @@ api
 Only entrypoints are ever listed. `nested-shared` and `go-shared` are internal dependencies: a change in them propagates to the entrypoints that depend on them, but they are never reported themselves. `web` and `docs` are untouched here because they depend on `ui`, not on `go-shared`.
 
 Bumping tags the same project:
+
 ```bash
 monotrack tag bump --dry
 api/v0.0.2
@@ -202,7 +208,7 @@ When the repo defines a single project, or when `--single-changelog` is passed, 
 
 ```yaml
 changelog:
-  path: docs/CHANGELOG.md   # default: CHANGELOG.md
+  path: docs/CHANGELOG.md # default: CHANGELOG.md
 ```
 
 In monorepo per-project mode (the default), each changelog still lives at `<project-path>/CHANGELOG.md` and this option is ignored.
@@ -213,8 +219,8 @@ By default tags are formatted as `<name>/v<version>` (monorepo) or `v<version>` 
 
 ```yaml
 tags:
-  separator: "@"        # default "/"; ignored in single-project mode
-  versionPrefix: ""     # default "v"; set to "" explicitly for bare semver tags
+  separator: "@" # default "/"; ignored in single-project mode
+  versionPrefix: "" # default "v"; set to "" explicitly for bare semver tags
 ```
 
 The example above yields tags like `api@1.2.3`. Tag parsing uses the same scheme, so existing tags from a previous scheme won't be picked up after a change — bump or migrate explicitly.
@@ -233,6 +239,40 @@ projects:
 
 Release commits and PR titles from that config read `chore(release): bump 3 project(s) [charts]`.
 `tag undo` reads the label back and refuses to run when it doesn't match the loaded config, since tags are derived from the loaded config.
+
+## Dependency detection
+
+`dependsOn` can be detected from each project's own manifest instead of being maintained by hand:
+
+| Type   | Source                      | Edge when                                                                                                 |
+| ------ | --------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `go`   | `go list -deps -test ./...` | an imported package's directory falls inside another project                                              |
+| `node` | `package.json`              | a dependency key matches another node project's package name                                              |
+| `helm` | `Chart.yaml`                | a subchart's `repository` is a `file://` path inside another project, or its `name` matches another chart |
+
+```bash
+monotrack deps list             # print the detected graph
+monotrack deps check            # exit non-zero if monotrack.yaml disagrees
+monotrack deps sync             # rewrite the dependsOn lists in place (--dry to preview)
+```
+
+Anything resolving outside the repository is ignored. `sync` touches only `dependsOn`. The rest of the document is preserved.
+
+Detection feeds `dependsOn`, it does not replace it. Change detection still reads the config, so `check` in CI keeps the graph honest while leaving a human on the diff. `check` and `sync` classify each difference:
+
+| Marker                                 | Meaning                                                | `sync`                                        |
+| -------------------------------------- | ------------------------------------------------------ | --------------------------------------------- |
+| `+ dep`                                | detected, missing from the config                      | adds it                                       |
+| `- dep (already reached via x)`        | **redundant** — reached through a longer detected path | drops it (`--transitive` keeps them explicit) |
+| `! dep (no detected dependency, kept)` | **unverified** — no detected counterpart at all        | keeps it, unless `--prune`                    |
+
+An unverified edge could mean a real dependency the resolver cannot see, for example cross-type one, like a `node` frontend importing TypeScript generated from a `go` protobuf package. Removing one silently stops rebuilding a project, so confirm it is genuinely gone before passing `--prune`.
+
+> [!IMPORTANT]
+> The Go resolver shells out to `go list`, so it needs the Go toolchain and a populated module cache. The action image ships only `git`, `jq`, `curl` and `gh`. Run `deps check` in a job that sets Go up itself.
+
+> [!NOTE]
+> Granularity is the project, not the package: if `api` imports one package from `go-shared`, an edit to any other package in `go-shared` still marks `api` changed. Over-triggering costs CI time; under-triggering ships a stale artifact.
 
 ## Action
 
@@ -273,19 +313,21 @@ The action does not take a token input. Anything that needs to push (`tag bump`)
 The output of the CLI
 
 ## Example usage
-Perform operations on all projects including internal dependencies:
-```yaml
-  - uses: actions/checkout@v5
-    with:
-      fetch-depth: 0 # Required
 
-  - name: Run Monotrack CLI
-    id: monotrack
-    uses: arnoldvann/monotrack@v0
-    with:
-      command: compare
-      args: -o json
-      config: monotrack.yaml
+Perform operations on all projects including internal dependencies:
+
+```yaml
+- uses: actions/checkout@v5
+  with:
+    fetch-depth: 0 # Required
+
+- name: Run Monotrack CLI
+  id: monotrack
+  uses: arnoldvann/monotrack@v0
+  with:
+    command: compare
+    args: -o json
+    config: monotrack.yaml
 ```
 
 Bump tags for projects that have changed between their latest tag and HEAD.
@@ -294,64 +336,64 @@ Bump tags for projects that have changed between their latest tag and HEAD.
 > The default flow opens a release PR rather than pushing the changelog commit directly, so it works against a protected branch without bypass — the PR goes through normal review/merge. If you pass `--no-pr` to push the changelog commit straight to the branch, the workflow needs an identity that can push to the protected branch: the default `GITHUB_TOKEN` cannot bypass branch protection, so use a GitHub App (or PAT) added to the branch's bypass list and pass its token to `actions/checkout`. Alternatively, pass `--no-pr --no-commit-changelog` so only tags get pushed.
 
 ```yaml
-    permissions:
-      contents: write
+permissions:
+  contents: write
 
-    jobs:
-      bump:
-        runs-on: ubuntu-latest
-        outputs:
-          projects: ${{ steps.monotrack_json.outputs.projects }}
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    outputs:
+      projects: ${{ steps.monotrack_json.outputs.projects }}
 
-        steps:
-          # Mint a short-lived installation token for the release bot App
-          - uses: actions/create-github-app-token@v1
-            id: app-token
-            with:
-              app-id: ${{ vars.RELEASE_BOT_APP_ID }}
-              private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
-
-          - uses: actions/checkout@v5
-            with:
-              fetch-depth: 0                                     # Required
-              token: ${{ steps.app-token.outputs.token }}        # The push credential
-
-          - name: Configure git user
-            run: |
-              git config user.name "release-bot[bot]"
-              git config user.email "${{ vars.RELEASE_BOT_APP_ID }}+release-bot[bot]@users.noreply.github.com"
-
-          - name: Run Monotrack CLI
-            id: monotrack
-            uses: arnoldvann/monotrack@v0
-            with:
-              # version is optional; when unset it tracks the action ref's major (e.g. `v0`)
-              command: tag bump               # Optional, defaults to 'tag bump'
-              args: -o json --pre-release     # Optional
-              config: monotrack.yaml          # Optional
-
-          - name: Output monotrack result
-            id: monotrack_json
-            shell: bash
-            run: |
-              OUTPUT='${{ steps.monotrack.outputs.output }}'
-              echo "projects<<EOF" >> "$GITHUB_OUTPUT"
-              echo "$OUTPUT" >> "$GITHUB_OUTPUT"
-              echo "EOF" >> "$GITHUB_OUTPUT"
-
-      # Do something with the output like build, test, release, etc
-      build:
-        needs:
-          - bump
-        strategy:
-          matrix: # Since we set --output to json, we can create a matrix based on that here
-            include: ${{ fromJson(needs.bump.outputs.projects) }}
-        uses: ./.github/workflows/build.yaml
+    steps:
+      # Mint a short-lived installation token for the release bot App
+      - uses: actions/create-github-app-token@v1
+        id: app-token
         with:
-          app: ${{ matrix.name }}
-          path: ${{ matrix.path }}
-          version: ${{ matrix.version }}
-          type: ${{ matrix.type }}
+          app-id: ${{ vars.RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # Required
+          token: ${{ steps.app-token.outputs.token }} # The push credential
+
+      - name: Configure git user
+        run: |
+          git config user.name "release-bot[bot]"
+          git config user.email "${{ vars.RELEASE_BOT_APP_ID }}+release-bot[bot]@users.noreply.github.com"
+
+      - name: Run Monotrack CLI
+        id: monotrack
+        uses: arnoldvann/monotrack@v0
+        with:
+          # version is optional; when unset it tracks the action ref's major (e.g. `v0`)
+          command: tag bump # Optional, defaults to 'tag bump'
+          args: -o json --pre-release # Optional
+          config: monotrack.yaml # Optional
+
+      - name: Output monotrack result
+        id: monotrack_json
+        shell: bash
+        run: |
+          OUTPUT='${{ steps.monotrack.outputs.output }}'
+          echo "projects<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$OUTPUT" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+  # Do something with the output like build, test, release, etc
+  build:
+    needs:
+      - bump
+    strategy:
+      matrix: # Since we set --output to json, we can create a matrix based on that here
+        include: ${{ fromJson(needs.bump.outputs.projects) }}
+    uses: ./.github/workflows/build.yaml
+    with:
+      app: ${{ matrix.name }}
+      path: ${{ matrix.path }}
+      version: ${{ matrix.version }}
+      type: ${{ matrix.type }}
 ```
 
 For a `--dry` invocation that only computes the project matrix and doesn't push (e.g., gating a build matrix before the real bump), the App token isn't needed — `actions/checkout` with the default `GITHUB_TOKEN` is fine.
@@ -360,13 +402,14 @@ For a `--dry` invocation that only computes the project matrix and doesn't push 
 > For a full working example, see the [testing repo](https://github.com/ArnoldVanN/monotrack-testing)
 
 ### Scheduled pruning
+
 Run [`tag prune`](#prune-stale-prerelease-tags) on a schedule to keep prerelease tags from accumulating. The job needs `contents: write` (to delete tags on origin) and a full-history checkout (`fetch-depth: 0`).
 
 ```yaml
 name: prune-tags
 on:
   schedule:
-    - cron: "0 3 * * 0"   # weekly, Sundays 03:00 UTC
+    - cron: "0 3 * * 0" # weekly, Sundays 03:00 UTC
   workflow_dispatch: {}
 
 permissions:
@@ -378,13 +421,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 0                       # Required: prune needs full history + tags
+          fetch-depth: 0 # Required: prune needs full history + tags
 
       - name: Prune stale prerelease tags
         uses: arnoldvann/monotrack@v0
         with:
           command: tag prune
-          args: --apply                        # omit --apply to only log the plan
+          args: --apply # omit --apply to only log the plan
           config: monotrack.yaml
 ```
 
@@ -396,13 +439,16 @@ jobs:
 ## Installation
 
 ### Build from source
+
 1. Clone the repository.
 2. Run:
+
 ```bash
 go build -o ./monotrack ./main.go
 ```
 
 ### Download binary
+
 ```bash
 curl -LO https://github.com/ArnoldVanN/monotrack/releases/download/v0.6.2/monotrack_Linux_x86_64.tar.gz
 tar -xzf monotrack_Linux_x86_64.tar.gz
@@ -416,6 +462,7 @@ mv monotrack /usr/local/bin/
 ### Examples
 
 #### Bump git tags for specified projects
+
 ```bash
 git tag --list
 frontend/v0.0.1
@@ -427,20 +474,21 @@ api/v0.0.3
 ```
 
 > [!IMPORTANT]  
-> If no git tags matching a project specified in the config exist, `tag` commands will default to `<project>/v0.0.0`  
+> If no git tags matching a project specified in the config exist, `tag` commands will default to `<project>/v0.0.0`
 
 By default, the bump kind for each project is derived from its [Conventional Commit](https://www.conventionalcommits.org/) history since its last tag:
 
-| Commit                               | Bump  |
-|--------------------------------------|-------|
-| `feat!: …` or `BREAKING CHANGE:` footer | major |
-| `feat: …`                            | minor |
-| `fix:`, `chore:`, `refactor:`, …     | patch |
-| Non-conventional message             | patch (excluded from changelog) |
+| Commit                                  | Bump                            |
+| --------------------------------------- | ------------------------------- |
+| `feat!: …` or `BREAKING CHANGE:` footer | major                           |
+| `feat: …`                               | minor                           |
+| `fix:`, `chore:`, `refactor:`, …        | patch                           |
+| Non-conventional message                | patch (excluded from changelog) |
 
-Commit-to-project mapping is determined by the file-diff logic — the conventional-commit *scope* is informational only and is not used to attribute commits to projects.
+Commit-to-project mapping is determined by the file-diff logic — the conventional-commit _scope_ is informational only and is not used to attribute commits to projects.
 
 To force a single component for every changed project (overriding the derived kind), pass `--component`:
+
 ```bash
 monotrack tag bump --component minor
 frontend/v0.1.0
@@ -482,18 +530,21 @@ This measures to the current commit by default; pass `--head <sha>` to measure t
 Use `--unreleased` for "what needs releasing", and the default range mode for "what does this branch/PR affect". Reaching for `--unreleased` in PR CI will flag everything merged to the base branch since the last release, not just the PR's own changes.
 
 #### Output as json
+
 ```bash
 monotrack tag bump --head 8a059ec --projects api -o json
 [{"name":"api","path":"apps/api","version":"v0.0.3","type":"go"}]
 ```
 
 #### Use prereleases
+
 ```bash
 monotrack tag bump --head 8a059ec --projects api -o json -p
 [{"name":"api","path":"apps/api","version":"v0.0.4-rc.1","type":"go"}}]
 ```
 
 #### Promote a prerelease to a release
+
 When a project's latest tag is a prerelease (e.g. `api/v0.1.0-rc.3`) and `tag bump` is invoked **without** `-p`, the project is treated as eligible even if no source files have changed since that tag. The prerelease suffix is stripped without bumping the version components:
 
 ```bash
@@ -505,6 +556,7 @@ monotrack tag bump --projects api -o json
 This fits the branch-promotion model: RCs accumulate on `main` (run with `-p`), then a merge into `production` runs without `-p` and converts the latest RC into a release tag.
 
 #### Run the bump command without making any changes (dry run)
+
 ```bash
 monotrack tag bump --dry
 frontend/v0.0.1
@@ -513,11 +565,13 @@ shared-pkg/v0.0.1
 ```
 
 #### Prune stale prerelease tags
+
 Prerelease tags accumulate quickly: a project cutting an RC on every staging build can leave hundreds of `-rc.N` tags behind, which bloats `git fetch` and clutters `git tag`. `monotrack tag prune` deletes the stale ones while keeping everything that still matters.
 
 Deleting stale RCs is safe for version numbering: once a project's latest tag is stable (e.g. `api/v0.2.0`), the next bump is computed from that stable tag, never from the RCs below it.
 
-`prune` is a **dry run by default** — it prints what it *would* delete and changes nothing. Pass `--apply` to actually delete:
+`prune` is a **dry run by default** — it prints what it _would_ delete and changes nothing. Pass `--apply` to actually delete:
+
 ```bash
 # preview (deletes nothing)
 monotrack tag prune
@@ -530,17 +584,18 @@ api/v0.2.0-rc.2
 monotrack tag prune --apply
 ```
 
-| Flag | Default | Effect |
-|------|---------|--------|
-| `--apply` | `false` | Actually delete. Without it, prune only prints the plan. |
-| `--remote` | `true` | Delete matching tags on `origin`. |
-| `--local` | `true` | Delete matching local tags. |
-| `-o json` | — | Emit the plan as JSON (`{project, tag, version, deleted}`). |
+| Flag       | Default | Effect                                                      |
+| ---------- | ------- | ----------------------------------------------------------- |
+| `--apply`  | `false` | Actually delete. Without it, prune only prints the plan.    |
+| `--remote` | `true`  | Delete matching tags on `origin`.                           |
+| `--local`  | `true`  | Delete matching local tags.                                 |
+| `-o json`  | —       | Emit the plan as JSON (`{project, tag, version, deleted}`). |
 
 See [Scheduled pruning](#scheduled-pruning) for running this automatically.
 
 # TODO
-- [ ] Dynamically generate `monotrack.yaml`  
+
+- [ ] Dynamically generate `monotrack.yaml` (`deps sync` covers `dependsOn`; project discovery still to do)
 - [ ] Sort outputs alphabetically
 - [ ] For helm, update versions in each Chart.yaml `version`, and detect umbrella charts in order to update `dependencies[n].version` in the parent
 - [ ] Changelog: List each internal dep thats been updated instead of "- Updated internal dependencies"
