@@ -241,6 +241,24 @@ projects:
 Release commits and PR titles from that config read `chore(release): bump 3 project(s) [charts]`.
 `tag undo` reads the label back and refuses to run when it doesn't match the loaded config, since tags are derived from the loaded config.
 
+## Project discovery
+
+`monotrack init` generates the config from the repository: every directory with a `go.mod`, `package.json` or `Chart.yaml` becomes a project named after its directory, with `dependsOn` from [dependency detection](#dependency-detection). Projects nothing else depends on become entrypoints. Gitignored files, workspace roots and packaged subcharts are skipped.
+
+```bash
+monotrack init --dry            # preview the generated config
+monotrack projects check        # exit non-zero if a project is missing from monotrack.yaml
+monotrack projects sync         # add the missing ones (--dry to preview)
+```
+
+To leave projects out on purpose:
+
+```yaml
+discovery:
+  exclude:
+    - tools/**
+```
+
 ## Dependency detection
 
 `dependsOn` can be detected from each project's own manifest instead of being maintained by hand:
@@ -477,8 +495,8 @@ tar -xzf monotrack_Linux_x86_64.tar.gz
 mv monotrack /usr/local/bin/
 ```
 
-1. Run `monotrack init` to create a template configuration (`monotrack.yaml`) and an empty `.monotrack-manifest.yaml`. The manifest is read/written by the PR-based release flow; commit it to version control so CI runs can read it across jobs.
-2. Edit the config file to match your actual paths and dependencies.
+1. Run `monotrack init` from the repository root. It writes a `monotrack.yaml` listing every project it finds, and an empty `.monotrack-manifest.yaml`. The manifest is read/written by the PR-based release flow; commit it to version control so CI runs can read it across jobs.
+2. Review the generated config (see [Project discovery](#project-discovery)), mainly the project names and which projects are entrypoints. Add `monotrack projects check` to CI to catch projects added later.
 3. Run `monotrack compare` to list the projects you've changed against the default branch
 
 ### Examples
@@ -617,7 +635,6 @@ See [Scheduled pruning](#scheduled-pruning) for running this automatically.
 
 # TODO
 
-- [ ] Dynamically generate `monotrack.yaml` (`deps sync` covers `dependsOn`; project discovery still to do)
 - [ ] For helm, update versions in each Chart.yaml `version`, and detect umbrella charts in order to update `dependencies[n].version` in the parent
 - [ ] Changelog: List each internal dep thats been updated instead of "- Updated internal dependencies"
 - [ ] Replace the `gh` shell-outs in `internal/forge/github.go` with go-github or direct REST, so PR commands work on runners without the GitHub CLI

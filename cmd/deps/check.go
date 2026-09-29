@@ -6,6 +6,7 @@ import (
 
 	"github.com/arnoldvann/monotrack/internal/app"
 	"github.com/arnoldvann/monotrack/internal/dependencies"
+	"github.com/arnoldvann/monotrack/internal/printer"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +24,7 @@ graph is caught in CI rather than silently skipping a build. Unverified edges
 are reported but do not fail the check unless --prune is set, matching what
 sync would actually write.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		format, err := outFormat(cmd, "plain", "json")
+		format, err := printer.Format(cmd, "plain", "json")
 		if err != nil {
 			return err
 		}

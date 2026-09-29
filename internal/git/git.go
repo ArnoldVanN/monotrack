@@ -62,6 +62,21 @@ func DiffWorkingTree(rev string) ([]string, error) {
 	return out, nil
 }
 
+// ListFiles returns every tracked and untracked (non-ignored) file in the
+// repository, relative to its root.
+func ListFiles() ([]string, error) {
+	path, err := GetRepoRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	files, err := runLines(exec.Command("git", "-C", path, "ls-files", "--cached", "--others", "--exclude-standard"))
+	if err != nil {
+		return nil, fmt.Errorf("git ls-files failed: %w", err)
+	}
+	return files, nil
+}
+
 func runLines(cmd *exec.Cmd) ([]string, error) {
 	out, err := cmd.CombinedOutput()
 	if err != nil {

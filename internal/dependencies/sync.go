@@ -38,7 +38,7 @@ func Sync(src []byte, deps map[string][]string) ([]byte, error) {
 
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(detectIndent(src))
+	enc.SetIndent(DetectIndent(src))
 	if err := enc.Encode(&doc); err != nil {
 		return nil, fmt.Errorf("encoding config: %w", err)
 	}
@@ -122,9 +122,9 @@ func keyIndex(node *yaml.Node, key string) int {
 	return -1
 }
 
-// detectIndent reads the first indented line's width so a re-encoded config
+// DetectIndent reads the first indented line's width so a re-encoded config
 // keeps the file's existing style instead of the encoder's 4-space default.
-func detectIndent(src []byte) int {
+func DetectIndent(src []byte) int {
 	for line := range strings.SplitSeq(string(src), "\n") {
 		trimmed := strings.TrimLeft(line, " ")
 		if trimmed == "" || trimmed == line || strings.HasPrefix(trimmed, "#") {

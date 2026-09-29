@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/arnoldvann/monotrack/internal/printer"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +22,7 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List the detected internal dependencies of each project",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		format, err := outFormat(cmd, "plain", "json")
+		format, err := printer.Format(cmd, "plain", "json")
 		if err != nil {
 			return err
 		}

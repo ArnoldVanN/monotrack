@@ -44,6 +44,11 @@ base branch after you diverged are not reported as your changes.
 latest tag. "what has not been released yet" instead of "what did this range
 touch".`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := printer.Format(cmd, "plain", "json")
+			if err != nil {
+				return err
+			}
+
 			headFlag := cmd.InheritedFlags().Lookup("head")
 			base := cmd.InheritedFlags().Lookup("base")
 
@@ -52,7 +57,7 @@ touch".`,
 				if err != nil {
 					return err
 				}
-				return emitChanged(changes)
+				return emitChanged(changes, format)
 			}
 
 			// Same default as `tag bump`: measure up to the current commit.
@@ -112,13 +117,13 @@ touch".`,
 			// assume project has changed if it doesnt have tags yet
 			maps.Copy(changes, zeroTagProjects)
 
-			return emitChanged(changes)
+			return emitChanged(changes, format)
 		},
 	}
 )
 
 // emitChanged renders the changed set in the requested output format.
-func emitChanged(changes map[string]bool) error {
+func emitChanged(changes map[string]bool, format string) error {
 	changedProjects := make(map[string]projects.ProjectConfig)
 	for n := range changes {
 		proj, ok := app.State.Config.Projects[n]
@@ -130,7 +135,7 @@ func emitChanged(changes map[string]bool) error {
 
 	names := slices.Sorted(maps.Keys(changedProjects))
 
-	if out == "json" {
+	if format == "json" {
 		o := make([]printer.Output, 0, len(changedProjects))
 
 		for _, k := range names {

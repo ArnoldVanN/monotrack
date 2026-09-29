@@ -38,7 +38,11 @@ var (
 )
 
 func runPrune(cmd *cobra.Command, args []string) error {
-	jsonOut := cmd.InheritedFlags().Lookup("out").Value.String() == "json"
+	format, err := printer.Format(cmd, "plain", "json")
+	if err != nil {
+		return err
+	}
+	jsonOut := format == "json"
 
 	plan, err := versioning.PlanPrune(app.State.Config, app.State.Projects)
 	if err != nil {

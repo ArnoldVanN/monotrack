@@ -16,6 +16,14 @@ type Config struct {
 	Release   ReleaseConfig            `mapstructure:"release"`
 	Tags      TagsConfig               `mapstructure:"tags"`
 	Changelog ChangelogConfig          `mapstructure:"changelog"`
+	Discovery DiscoveryConfig          `mapstructure:"discovery"`
+}
+
+// DiscoveryConfig tunes `projects check` and `projects sync`.
+type DiscoveryConfig struct {
+	// Exclude holds doublestar patterns, matched against repo-relative
+	// directories, for projects that should never be reported as missing.
+	Exclude []string `mapstructure:"exclude"`
 }
 
 // ChangelogConfig customizes changelog output.
@@ -167,6 +175,12 @@ func (c *Config) Validate() error {
 	c.Name = strings.TrimSpace(c.Name)
 	if strings.ContainsAny(c.Name, "[]\n") {
 		return fmt.Errorf("name %q may not contain brackets or newlines", c.Name)
+	}
+
+	for _, pattern := range c.Discovery.Exclude {
+		if !doublestar.ValidatePattern(pattern) {
+			return fmt.Errorf("discovery: invalid exclude pattern %q", pattern)
+		}
 	}
 
 	for name, pc := range c.Projects {

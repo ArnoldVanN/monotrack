@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -526,5 +527,22 @@ func TestPushRefsAtomicNonFastForward(t *testing.T) {
 	}
 	if !errors.Is(err, ErrNonFastForward) {
 		t.Errorf("err = %v, want wraps ErrNonFastForward", err)
+	}
+}
+
+func TestListFilesIncludesUntrackedButNotIgnored(t *testing.T) {
+	initRepo(t)
+	commit(t, ".gitignore", "node_modules/\n", "init")
+	writeFile(t, "apps/web/package.json", "{}")
+	writeFile(t, "node_modules/dep/package.json", "{}")
+
+	got, err := ListFiles()
+	if err != nil {
+		t.Fatalf("ListFiles: %v", err)
+	}
+	slices.Sort(got)
+	want := []string{".gitignore", "apps/web/package.json"}
+	if !slices.Equal(got, want) {
+		t.Errorf("ListFiles = %v, want %v", got, want)
 	}
 }

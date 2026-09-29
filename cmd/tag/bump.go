@@ -54,8 +54,12 @@ var (
 // the manifest has unpushed pending tags, push them first so a concurrent new
 // commit doesn't get folded into the same release proposal.
 func runBump(cmd *cobra.Command, args []string) error {
+	format, err := printer.Format(cmd, "plain", "json")
+	if err != nil {
+		return err
+	}
+
 	headFlag := cmd.InheritedFlags().Lookup("head")
-	outFlag := cmd.InheritedFlags().Lookup("out")
 	manifestFlag := cmd.InheritedFlags().Lookup("manifest")
 
 	head := headFlag.Value.String()
@@ -67,7 +71,7 @@ func runBump(cmd *cobra.Command, args []string) error {
 		head = h
 	}
 
-	jsonOut := outFlag.Value.String() == "json"
+	jsonOut := format == "json"
 	manifestPath := manifestFlag.Value.String()
 
 	if noPR || dry {

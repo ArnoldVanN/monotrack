@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/arnoldvann/monotrack/cmd/deps"
+	projectscmd "github.com/arnoldvann/monotrack/cmd/projects"
 	"github.com/arnoldvann/monotrack/cmd/tag"
 	"github.com/arnoldvann/monotrack/internal/app"
 	"github.com/arnoldvann/monotrack/internal/config"
@@ -101,4 +102,5 @@ func init() {
 
 	rootCmd.AddCommand(tag.TagCmd)
 	rootCmd.AddCommand(deps.DepsCmd)
+	rootCmd.AddCommand(projectscmd.ProjectsCmd)
 }

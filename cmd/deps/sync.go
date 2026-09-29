@@ -6,6 +6,7 @@ import (
 
 	"github.com/arnoldvann/monotrack/internal/app"
 	"github.com/arnoldvann/monotrack/internal/dependencies"
+	"github.com/arnoldvann/monotrack/internal/printer"
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +30,7 @@ Configured edges detection cannot account for are kept, since they are usually
 a blind spot in the resolver rather than a stale entry — a cross-language
 dependency, or a file loaded by path at runtime. --prune removes them instead.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if _, err := outFormat(cmd, "plain"); err != nil {
+			if _, err := printer.Format(cmd, "plain"); err != nil {
 				return err
 			}
 
