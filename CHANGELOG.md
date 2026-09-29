@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.11](https://github.com/ArnoldVanN/monotrack/compare/v0.9.10...v0.9.11) (2026-09-29)
+
+
+### Features
+
+* dependency detection ([8ead30c](https://github.com/ArnoldVanN/monotrack/commit/8ead30ca90113ea3f4516517bb0c59b27c1ce431))
+* Go package granularity ([fdc22f7](https://github.com/ArnoldVanN/monotrack/commit/fdc22f7a18867240f43974dbf2839fa5cbe3db24))
+
 ## [0.9.10](https://github.com/ArnoldVanN/monotrack/compare/v0.9.9...v0.9.10) (2026-08-19)
 
 
