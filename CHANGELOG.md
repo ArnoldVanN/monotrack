@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.13](https://github.com/ArnoldVanN/monotrack/compare/v0.9.12...v0.9.13) (2026-09-29)
+
+
+### Features
+
+* project discovery ([cd53319](https://github.com/ArnoldVanN/monotrack/commit/cd53319dff87ac4db0927ca51e90aca8cd704148))
+
 ## [0.9.12](https://github.com/ArnoldVanN/monotrack/compare/v0.9.11...v0.9.12) (2026-09-29)
 
 
