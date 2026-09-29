@@ -21,7 +21,7 @@ type packageJSON struct {
 // names of the other node projects in the config. Workspace deps are named by
 // package name under every package manager, so the version range (workspace:*,
 // file:, a semver range) doesn't need interpreting.
-func resolveNode(name string, pc projects.ProjectConfig, cfg *projects.Config, idx index) ([]string, error) {
+func resolveNode(name string, pc projects.ProjectConfig, cfg *projects.Config) ([]string, error) {
 	self, err := readPackageJSON(cleanPath(pc.Path))
 	if err != nil {
 		return nil, err

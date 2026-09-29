@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/arnoldvann/monotrack/internal/projects"
@@ -28,14 +29,30 @@ type goPackageError struct {
 // project, including test-only imports, and maps each package's directory back
 // onto the project that owns it. Packages outside the repo (stdlib, module
 // cache) drop out of the mapping.
+func resolveGo(root string, pc projects.ProjectConfig, idx index) ([]string, error) {
+	dirs, err := goPackageDirs(root, pc)
+	if err != nil {
+		return nil, err
+	}
+	var deps []string
+	for _, dir := range dirs {
+		if owner, ok := idx.owner(dir); ok {
+			deps = append(deps, owner)
+		}
+	}
+	return deps, nil
+}
+
+// goPackageDirs returns the repo-relative directory of every in-repo package
+// loaded by `go list -deps -test ./...` in the project.
 //
 // -e keeps go list from bailing on the first broken package so all load errors
 // surface at once; they are still fatal, since a package that failed to load
 // contributes no import edges and would silently narrow the result.
-func resolveGo(root, name string, pc projects.ProjectConfig, idx index) ([]string, error) {
+func goPackageDirs(root string, pc projects.ProjectConfig) ([]string, error) {
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command("go", "list", "-deps", "-test", "-e", "-json", "./...")
-	cmd.Dir = cleanPath(pc.Path)
+	cmd.Dir = filepath.Join(root, cleanPath(pc.Path))
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
@@ -48,7 +65,7 @@ func resolveGo(root, name string, pc projects.ProjectConfig, idx index) ([]strin
 	}
 
 	var (
-		deps    []string
+		dirs    []string
 		loadErr []string
 	)
 	dec := json.NewDecoder(&stdout)
@@ -68,13 +85,13 @@ func resolveGo(root, name string, pc projects.ProjectConfig, idx index) ([]strin
 		if pkg.Standard || pkg.Dir == "" {
 			continue
 		}
-		if owner, ok := idx.ownerOfAbs(root, pkg.Dir); ok {
-			deps = append(deps, owner)
+		if rel, ok := relToRoot(root, pkg.Dir); ok {
+			dirs = append(dirs, rel)
 		}
 	}
 
 	if len(loadErr) > 0 {
 		return nil, fmt.Errorf("go list reported %d package error(s):\n  %s", len(loadErr), strings.Join(loadErr, "\n  "))
 	}
-	return deps, nil
+	return dirs, nil
 }

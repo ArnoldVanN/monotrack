@@ -271,8 +271,29 @@ An unverified edge could mean a real dependency the resolver cannot see, for exa
 > [!IMPORTANT]
 > The Go resolver shells out to `go list`, so it needs the Go toolchain and a populated module cache. The action image ships only `git`, `jq`, `curl` and `gh`. Run `deps check` in a job that sets Go up itself.
 
-> [!NOTE]
-> Granularity is the project, not the package: if `api` imports one package from `go-shared`, an edit to any other package in `go-shared` still marks `api` changed. Over-triggering costs CI time; under-triggering ships a stale artifact.
+### Package granularity
+
+By default granularity is the project, not the package: if `api` imports one package from `go-shared`, an edit to any other package in `go-shared` still marks `api` changed. Go projects can opt into package granularity:
+
+```yaml
+projects:
+  api:
+    type: go
+    path: apps/api
+    granularity: package # default: project
+    dependsOn:
+      - go-shared
+```
+
+`api` is then marked changed by a dependency only when a changed file could affect a package it loads (`go list -deps -test ./...`, run at change-detection time):
+
+- a file in a package `api` loads counts, as does any file that doesn't belong to a package: `go.mod`, `go.sum`, embedded assets, `testdata`, a deleted package;
+- a file in a package `api` never loads does not count;
+- a `dependsOn` edge not backed by an import (a pinned tag, a non-Go project) keeps project granularity, including edges further down the import chain.
+
+An edge that is both an import and something the resolver can't see, like a Dockerfile copying files out of the dependency, is treated as an import only. Keep `granularity: project` on such projects.
+
+Imports are read for the host's `GOOS`/`GOARCH` and default build tags. Set `GOOS`, `GOARCH` and `GOFLAGS=-tags=...` to match the release build when an import sits behind a constraint. Without a working Go toolchain, monotrack warns and falls back to project granularity, which only over-triggers. Over-triggering costs CI time; under-triggering ships a stale artifact.
 
 ## Action
 

@@ -81,13 +81,19 @@ func (r ReleaseConfig) ResolveReleaseBranch(base string) string {
 }
 
 type ProjectConfig struct {
-	Type       projectType `mapstructure:"type"`
-	Path       string      `mapstructure:"path"`
-	Versioning string      `mapstructure:"versioning"`
-	DependsOn  []string    `mapstructure:"dependsOn"`
-	Build      BuildConfig `mapstructure:"build"`
-	Ignore     []string    `mapstructure:"ignore"`
+	Type        projectType `mapstructure:"type"`
+	Path        string      `mapstructure:"path"`
+	Versioning  string      `mapstructure:"versioning"`
+	DependsOn   []string    `mapstructure:"dependsOn"`
+	Build       BuildConfig `mapstructure:"build"`
+	Ignore      []string    `mapstructure:"ignore"`
+	Granularity string      `mapstructure:"granularity"`
 }
+
+const (
+	GranularityProject = "project"
+	GranularityPackage = "package"
+)
 
 type BuildConfig struct {
 	Entrypoint bool `mapstructure:"entrypoint"`
@@ -200,6 +206,16 @@ func (c *Config) Validate() error {
 			if !doublestar.ValidatePattern(p) {
 				return fmt.Errorf("project %q: invalid ignore pattern %q", name, pattern)
 			}
+		}
+
+		switch pc.Granularity {
+		case "", GranularityProject:
+		case GranularityPackage:
+			if pc.Type != ProjectTypeGo {
+				return fmt.Errorf("project %q: granularity %q is only supported for go projects", name, pc.Granularity)
+			}
+		default:
+			return fmt.Errorf("project %q has invalid granularity %q (must be one of: project, package)", name, pc.Granularity)
 		}
 
 		for _, dep := range pc.DependsOn {

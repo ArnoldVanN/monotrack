@@ -28,9 +28,9 @@ func Resolve(root string, cfg *projects.Config, transitive bool) (map[string][]s
 		)
 		switch pc.Type {
 		case projects.ProjectTypeGo:
-			found, err = resolveGo(root, name, pc, idx)
+			found, err = resolveGo(root, pc, idx)
 		case projects.ProjectTypeNode:
-			found, err = resolveNode(name, pc, cfg, idx)
+			found, err = resolveNode(name, pc, cfg)
 		case projects.ProjectTypeHelm:
 			found, err = resolveHelm(root, name, pc, cfg, idx)
 		default:
@@ -195,6 +195,14 @@ func (i index) owner(rel string) (string, bool) {
 // ownerOfAbs maps an absolute path back to a project, ignoring anything
 // outside the repo (stdlib, module cache, node_modules symlink targets).
 func (i index) ownerOfAbs(root, abs string) (string, bool) {
+	rel, ok := relToRoot(root, abs)
+	if !ok {
+		return "", false
+	}
+	return i.owner(rel)
+}
+
+func relToRoot(root, abs string) (string, bool) {
 	rel, err := filepath.Rel(root, abs)
 	if err != nil {
 		return "", false
@@ -203,7 +211,7 @@ func (i index) ownerOfAbs(root, abs string) (string, bool) {
 	if rel == ".." || strings.HasPrefix(rel, "../") {
 		return "", false
 	}
-	return i.owner(rel)
+	return rel, true
 }
 
 func cleanPath(p string) string {
