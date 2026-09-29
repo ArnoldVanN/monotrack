@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.12](https://github.com/ArnoldVanN/monotrack/compare/v0.9.11...v0.9.12) (2026-09-29)
+
+
+### Features
+
+* sort outputs alphabetically ([5f5c40c](https://github.com/ArnoldVanN/monotrack/commit/5f5c40c422edf337a3da0ce327c08ce895f771e6))
+
+
+### Bug Fixes
+
+* Dockerfile base img ([646f376](https://github.com/ArnoldVanN/monotrack/commit/646f376f50f0f0511a1a48a2c0a552fce38b22df))
+
 ## [0.9.11](https://github.com/ArnoldVanN/monotrack/compare/v0.9.10...v0.9.11) (2026-09-29)
 
 
