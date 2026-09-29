@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"maps"
+	"slices"
 	"strings"
 
 	"github.com/arnoldvann/monotrack/internal/app"
@@ -127,10 +128,13 @@ func emitChanged(changes map[string]bool) error {
 		changedProjects[n] = proj
 	}
 
+	names := slices.Sorted(maps.Keys(changedProjects))
+
 	if out == "json" {
 		o := make([]printer.Output, 0, len(changedProjects))
 
-		for k, v := range changedProjects {
+		for _, k := range names {
+			v := changedProjects[k]
 			o = append(o, printer.Output{
 				Name: k,
 				Path: v.Path,
@@ -145,7 +149,7 @@ func emitChanged(changes map[string]bool) error {
 
 		fmt.Println(string(b))
 	} else {
-		for k := range changedProjects {
+		for _, k := range names {
 			fmt.Printf("%s\n", k)
 		}
 	}

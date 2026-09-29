@@ -3,6 +3,7 @@ package versioning
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -225,6 +226,10 @@ func computeResults(
 			Commits:    parsed,
 		})
 	}
+
+	slices.SortFunc(results, func(a, b BumpResult) int {
+		return strings.Compare(a.Project.Name(), b.Project.Name())
+	})
 
 	return results, nil
 }

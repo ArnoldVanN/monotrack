@@ -2,6 +2,8 @@ package tag
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 
 	"github.com/arnoldvann/monotrack/internal/app"
 	"github.com/arnoldvann/monotrack/internal/git"
@@ -23,8 +25,8 @@ var (
 				return err
 			}
 
-			for _, o := range tags {
-				for _, t := range o {
+			for _, name := range slices.Sorted(maps.Keys(app.State.Projects)) {
+				for _, t := range tags[app.State.Projects[name]] {
 					fmt.Println(t)
 				}
 			}
