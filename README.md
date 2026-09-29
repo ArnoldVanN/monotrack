@@ -5,7 +5,8 @@ Monotrack is a generic solution to help ease the pains of CI in a monorepo.
 Monotrack allows you to easily run jobs, create tags, write changelogs and review these changes for projects that have actually changed,  
 while taking into consideration local internal dependency trees.
 
-> [!NOTE] > **Single-project repos** are supported with no extra flags. When `monotrack.yaml` defines exactly one project, monotrack switches behavior automatically: tags are emitted as `vX.Y.Z` (no `<name>/` prefix), and the project's `path` can be `.` or omitted to mean the repo root. The `CHANGELOG.md` is written at the repo root (or at `changelog.path` in the config).
+> [!NOTE]
+> **Single-project repos** are supported with no extra flags. When `monotrack.yaml` defines exactly one project, monotrack switches behavior automatically: tags are emitted as `vX.Y.Z` (no `<name>/` prefix), and the project's `path` can be `.` or omitted to mean the repo root. The `CHANGELOG.md` is written at the repo root (or at `changelog.path` in the config).
 
 ## Release flow
 
