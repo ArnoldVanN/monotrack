@@ -19,12 +19,13 @@ const fileHeader = `# Changelog
 `
 
 type Entry struct {
-	Project    projects.Project
-	OldVersion string
-	NewVersion string
-	Date       time.Time
-	Reason     versioning.BumpReason
-	Commits    []conventional.ParsedCommit
+	Project      projects.Project
+	OldVersion   string
+	NewVersion   string
+	Date         time.Time
+	Reason       versioning.BumpReason
+	Commits      []conventional.ParsedCommit
+	Dependencies []versioning.DepUpdate
 }
 
 type section struct {
@@ -133,6 +134,18 @@ func renderFallback(e Entry) string {
 		line = "Re-anchored after history change"
 	default:
 		line = "Updated internal dependencies"
+		if len(e.Dependencies) > 0 {
+			var b strings.Builder
+			b.WriteString(line + ":")
+			for _, d := range e.Dependencies {
+				if d.Version != "" {
+					fmt.Fprintf(&b, "\n  - %s → %s", d.Name, d.Version)
+				} else {
+					fmt.Fprintf(&b, "\n  - %s", d.Name)
+				}
+			}
+			line = b.String()
+		}
 	}
 	return fmt.Sprintf("### Other\n\n- %s\n\n", line)
 }

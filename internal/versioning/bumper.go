@@ -42,6 +42,17 @@ type BumpResult struct {
 	Kind       BumpKind
 	Reason     BumpReason
 	Commits    []conventional.ParsedCommit
+	// Dependencies lists the changed internal dependencies behind a
+	// ReasonDependency bump.
+	Dependencies []DepUpdate
+}
+
+// DepUpdate names a changed internal dependency and the version it is
+// released at: its new version when bumped in the same run, otherwise its
+// latest tag.
+type DepUpdate struct {
+	Name    string
+	Version string
 }
 
 type VersionBumper struct {
@@ -153,11 +164,16 @@ func detectChanges(
 		if !all[name] {
 			continue
 		}
-		reason := ReasonDependency
-		if direct[name] {
-			reason = ReasonCommits
+		cp := changedProject{version: bumpFrom, base: ts.reachBase, reason: ReasonCommits}
+		if !direct[name] {
+			cp.reason = ReasonDependency
+			for _, dep := range cfg.Projects[name].DependsOn {
+				if all[dep] {
+					cp.deps = append(cp.deps, DepUpdate{Name: dep, Version: tags[dep].latest})
+				}
+			}
 		}
-		changed[name] = changedProject{version: bumpFrom, base: ts.reachBase, reason: reason}
+		changed[name] = cp
 	}
 
 	// Promotion: when doing a stable release, projects whose latest tag is a
@@ -218,12 +234,28 @@ func computeResults(
 		}
 
 		results = append(results, BumpResult{
-			Project:    proj,
-			OldVersion: info.version,
-			NewVersion: newVer,
-			Kind:       kind,
-			Reason:     info.reason,
-			Commits:    parsed,
+			Project:      proj,
+			OldVersion:   info.version,
+			NewVersion:   newVer,
+			Kind:         kind,
+			Reason:       info.reason,
+			Commits:      parsed,
+			Dependencies: slices.Clone(info.deps),
+		})
+	}
+
+	newVersions := make(map[string]string, len(results))
+	for _, r := range results {
+		newVersions[r.Project.Name()] = r.NewVersion
+	}
+	for _, r := range results {
+		for i, d := range r.Dependencies {
+			if v, ok := newVersions[d.Name]; ok {
+				r.Dependencies[i].Version = v
+			}
+		}
+		slices.SortFunc(r.Dependencies, func(a, b DepUpdate) int {
+			return strings.Compare(a.Name, b.Name)
 		})
 	}
 
@@ -341,6 +373,7 @@ type changedProject struct {
 	version string
 	base    string
 	reason  BumpReason
+	deps    []DepUpdate
 }
 
 // latestStableReachableBase returns the merge-base of the highest-semver

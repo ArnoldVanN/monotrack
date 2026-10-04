@@ -431,3 +431,109 @@ func TestBumpProjectsPromotesUnreachablePrerelease(t *testing.T) {
 		t.Errorf("NewVersion = %q, want v1.0.0", apiResult.NewVersion)
 	}
 }
+
+// TestBumpProjectsListsChangedDependencies checks that a dependency bump
+// records which dependencies changed, at their new version when bumped in the
+// same run and at their latest tag otherwise.
+func TestBumpProjectsListsChangedDependencies(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available on PATH")
+	}
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, out)
+		}
+	}
+	write := func(path, content string) {
+		t.Helper()
+		full := filepath.Join(dir, path)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+	}
+	run("init", "-q", "-b", "main")
+	run("config", "user.email", "test@example.com")
+	run("config", "user.name", "Test")
+	run("config", "commit.gpgsign", "false")
+	run("config", "tag.gpgsign", "false")
+
+	write("apps/web/index.js", "// web\n")
+	write("libs/ui/index.js", "// ui\n")
+	write("libs/lib/index.js", "// lib\n")
+	write("libs/other/index.js", "// other\n")
+	run("add", ".")
+	run("commit", "-q", "-m", "chore: init")
+	run("tag", "web/v1.0.0")
+	run("tag", "ui/v1.0.0")
+	run("tag", "lib/v2.0.0")
+	run("tag", "other/v1.0.0")
+
+	// lib changes and is released on its own; ui changes and is released in
+	// this run. web depends on both (and on other, which does not change).
+	write("libs/lib/index.js", "// lib v2.1\n")
+	run("add", ".")
+	run("commit", "-q", "-m", "feat: lib work")
+	run("tag", "lib/v2.1.0")
+	write("libs/ui/index.js", "// ui v1.1\n")
+	run("add", ".")
+	run("commit", "-q", "-m", "feat: ui work")
+
+	cfg := &projects.Config{Projects: map[string]projects.ProjectConfig{
+		"web":   {Type: projects.ProjectTypeNode, Path: "apps/web", DependsOn: []string{"ui", "other", "lib"}},
+		"ui":    {Type: projects.ProjectTypeNode, Path: "libs/ui"},
+		"lib":   {Type: projects.ProjectTypeNode, Path: "libs/lib"},
+		"other": {Type: projects.ProjectTypeNode, Path: "libs/other"},
+	}}
+	app.Init(cfg, map[string]projects.Project{
+		"web":   projects.NewNodeProject("web", "apps/web", true, "node"),
+		"ui":    projects.NewNodeProject("ui", "libs/ui", true, "node"),
+		"lib":   projects.NewNodeProject("lib", "libs/lib", true, "node"),
+		"other": projects.NewNodeProject("other", "libs/other", true, "node"),
+	})
+
+	head, err := git.GetHead()
+	if err != nil {
+		t.Fatalf("GetHead: %v", err)
+	}
+
+	b := NewBumper()
+	results, err := b.BumpProjects(app.State.Projects, nil, false, head)
+	if err != nil {
+		t.Fatalf("BumpProjects: %v", err)
+	}
+	byName := make(map[string]BumpResult, len(results))
+	for _, r := range results {
+		byName[r.Project.Name()] = r
+	}
+
+	web, ok := byName["web"]
+	if !ok {
+		t.Fatalf("no result for web: %+v", results)
+	}
+	if web.Reason != ReasonDependency {
+		t.Errorf("web Reason = %q, want %q", web.Reason, ReasonDependency)
+	}
+	want := []DepUpdate{
+		{Name: "lib", Version: "v2.1.0"},
+		{Name: "ui", Version: byName["ui"].NewVersion},
+	}
+	if len(web.Dependencies) != len(want) {
+		t.Fatalf("web Dependencies = %+v, want %+v", web.Dependencies, want)
+	}
+	for i := range want {
+		if web.Dependencies[i] != want[i] {
+			t.Errorf("web Dependencies[%d] = %+v, want %+v", i, web.Dependencies[i], want[i])
+		}
+	}
+	if ui := byName["ui"]; len(ui.Dependencies) != 0 {
+		t.Errorf("ui Dependencies = %+v, want none", ui.Dependencies)
+	}
+}

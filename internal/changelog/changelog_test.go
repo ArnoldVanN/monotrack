@@ -56,8 +56,25 @@ func TestRender_DependencyOnly(t *testing.T) {
 		Commits:    nil,
 	}
 	out := Render(e)
-	if !strings.Contains(out, "Updated internal dependencies") {
-		t.Errorf("expected dep-only fallback, got: %s", out)
+	if !strings.Contains(out, "- Updated internal dependencies\n") {
+		t.Errorf("expected generic dep-only fallback, got: %s", out)
+	}
+}
+
+func TestRender_DependencyOnlyListsDeps(t *testing.T) {
+	e := Entry{
+		NewVersion: "v0.0.2",
+		Date:       time.Now(),
+		Reason:     versioning.ReasonDependency,
+		Dependencies: []versioning.DepUpdate{
+			{Name: "go-shared", Version: "v0.4.1"},
+			{Name: "ui"},
+		},
+	}
+	out := Render(e)
+	want := "### Other\n\n- Updated internal dependencies:\n  - go-shared → v0.4.1\n  - ui\n\n"
+	if !strings.HasSuffix(out, want) {
+		t.Errorf("expected dep list %q, got: %s", want, out)
 	}
 }
 

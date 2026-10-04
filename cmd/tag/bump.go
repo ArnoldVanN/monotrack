@@ -332,12 +332,13 @@ func buildEntries(results []versioning.BumpResult) []changelog.Entry {
 	out := make([]changelog.Entry, 0, len(results))
 	for _, r := range results {
 		out = append(out, changelog.Entry{
-			Project:    r.Project,
-			OldVersion: r.OldVersion,
-			NewVersion: r.NewVersion,
-			Date:       now,
-			Reason:     r.Reason,
-			Commits:    r.Commits,
+			Project:      r.Project,
+			OldVersion:   r.OldVersion,
+			NewVersion:   r.NewVersion,
+			Date:         now,
+			Reason:       r.Reason,
+			Commits:      r.Commits,
+			Dependencies: r.Dependencies,
 		})
 	}
 	return out
