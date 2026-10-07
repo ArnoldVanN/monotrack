@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.14](https://github.com/ArnoldVanN/monotrack/compare/v0.9.13...v0.9.14) (2026-10-04)
+
+
+### Features
+
+* **changelog:** list dependencies on ReasonDependency bump ([6c5c9b3](https://github.com/ArnoldVanN/monotrack/commit/6c5c9b3a2d23b1cc65c549989360e6c91cccd687))
+
 ## [0.9.13](https://github.com/ArnoldVanN/monotrack/compare/v0.9.12...v0.9.13) (2026-09-29)
 
 
