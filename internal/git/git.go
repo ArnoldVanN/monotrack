@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/arnoldvann/monotrack/internal/projects"
 )
@@ -146,6 +147,54 @@ func GetTagsForProjects(cfg *projects.Config, p map[string]projects.Project) (ma
 	filtered := filterTagsForProjects(cfg, allTags, p)
 
 	return filtered, nil
+}
+
+// TagRef is a tag with the commit it points at and its creation date: the
+// tagger date for annotated tags, the commit date for lightweight ones.
+type TagRef struct {
+	Name   string
+	Commit string
+	Date   time.Time
+}
+
+// ListTagRefs returns every tag in the repository.
+func ListTagRefs() ([]TagRef, error) {
+	lines, err := runLines(exec.Command("git", "for-each-ref",
+		"--format=%(refname:short)%09%(objectname)%09%(*objectname)%09%(creatordate:iso-strict)", "refs/tags"))
+	if err != nil {
+		return nil, fmt.Errorf("error listing tags: %w", err)
+	}
+
+	refs := make([]TagRef, 0, len(lines))
+	for _, l := range lines {
+		f := strings.Split(l, "\t")
+		if len(f) != 4 {
+			continue
+		}
+		commit := f[1]
+		if f[2] != "" {
+			commit = f[2] // annotated: the peeled commit
+		}
+		date, err := time.Parse(time.RFC3339, f[3])
+		if err != nil {
+			return nil, fmt.Errorf("parsing date of tag %q: %w", f[0], err)
+		}
+		refs = append(refs, TagRef{Name: f[0], Commit: commit, Date: date})
+	}
+	return refs, nil
+}
+
+// TagsMergedInto returns the set of tags whose commit is an ancestor of ref.
+func TagsMergedInto(ref string) (map[string]bool, error) {
+	lines, err := runLines(exec.Command("git", "tag", "--merged", ref))
+	if err != nil {
+		return nil, fmt.Errorf("error listing tags merged into %q: %w", ref, err)
+	}
+	set := make(map[string]bool, len(lines))
+	for _, l := range lines {
+		set[l] = true
+	}
+	return set, nil
 }
 
 func filterTagsForProjects(cfg *projects.Config, tags []string, proj map[string]projects.Project) map[projects.Project][]string {

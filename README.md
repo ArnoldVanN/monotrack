@@ -116,6 +116,27 @@ monotrack tag bump --no-pr --no-commit-changelog
 monotrack tag bump --no-changelog
 ```
 
+##### Regenerating changelogs
+
+`monotrack changelog` rebuilds changelogs from the tag history, for a repo that adopted monotrack after its first releases, or to apply a `BEGIN_COMMIT_OVERRIDE` added after a release. Every tag reachable from `--head` (default `HEAD`) becomes a section, covering the same commit range `tag bump` uses: from the previous tag, or from the previous stable tag for a stable tag that follows prereleases.
+
+```bash
+# print every section
+monotrack changelog
+
+# rewrite the CHANGELOG.md files
+monotrack changelog --write
+
+# regenerate only releases tagged after a ref, keeping older sections as they are
+monotrack changelog --write --since api/v1.4.0
+monotrack changelog --write --since HEAD~50
+
+# only stable releases, for a flow that writes changelogs on stable bumps
+monotrack changelog --write --skip-prereleases
+```
+
+History is read with the current config, and a release without commits lists the dependencies that changed at project granularity. Sections from before a config change can differ from what `tag bump` wrote at the time.
+
 ## Configuration example
 
 Given the following `monotrack.yaml`:

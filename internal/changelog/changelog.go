@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/arnoldvann/monotrack/internal/projects"
 	"github.com/arnoldvann/monotrack/internal/versioning"
 	"github.com/arnoldvann/monotrack/internal/versioning/conventional"
+	"golang.org/x/mod/semver"
 )
 
 // TODO: customizable header
@@ -193,15 +195,169 @@ func Combined(path string, entries []Entry) error {
 
 	var block strings.Builder
 	for _, e := range sorted {
-		dateStr := e.Date.Format("2006-01-02")
-		fmt.Fprintf(&block, "## [%s %s] - %s\n\n", e.Project.Name(), e.NewVersion, dateStr)
-		body := Render(e)
-		// strip the per-entry "## [version] - date" header that Render added
-		body = stripFirstHeading(body)
-		block.WriteString(body)
+		block.WriteString(renderCombined(e))
 	}
 
 	return prepend(path, block.String())
+}
+
+// renderCombined renders e with the project name in its heading.
+func renderCombined(e Entry) string {
+	dateStr := e.Date.Format("2006-01-02")
+	// strip the per-entry "## [version] - date" header that Render added
+	return fmt.Sprintf("## [%s %s] - %s\n\n", e.Project.Name(), e.NewVersion, dateStr) + stripFirstHeading(Render(e))
+}
+
+// Section is one rendered release. Key is the bracketed text of its heading,
+// which identifies the release within a changelog file. Date is the exact
+// release time, which orders releases from the same day.
+type Section struct {
+	Key  string
+	Body string
+	Date time.Time
+}
+
+// Sections renders entries in the given order, with the project name in each
+// heading when combined.
+func Sections(entries []Entry, combined bool) []Section {
+	out := make([]Section, 0, len(entries))
+	for _, e := range entries {
+		if combined {
+			out = append(out, Section{Key: e.Project.Name() + " " + e.NewVersion, Body: renderCombined(e), Date: e.Date})
+		} else {
+			out = append(out, Section{Key: e.NewVersion, Body: Render(e), Date: e.Date})
+		}
+	}
+	return out
+}
+
+// Splice merges sections into the existing changelog. A section of existing
+// whose key is among sections is replaced; any other is kept when keep
+// returns true for its key. keep is called with "" for text that isn't a
+// release section, such as a preamble. Undated text stays on top in its
+// original order, followed by every release, newest first.
+func Splice(existing string, sections []Section, keep func(key string) bool) string {
+	replaced := make(map[string]bool, len(sections))
+	for _, s := range sections {
+		replaced[s.Key] = true
+	}
+
+	var undated []string
+	dated := slices.Clone(sections)
+	rest, _ := strings.CutPrefix(existing, fileHeader)
+	for _, chunk := range splitSections(rest) {
+		key, _ := sectionKey(chunk)
+		if (key != "" && replaced[key]) || !keep(key) {
+			continue
+		}
+		// Only the day is in the file, so a kept section sorts below a
+		// regenerated one from the same day.
+		if date, ok := sectionDate(chunk); ok {
+			dated = append(dated, Section{Key: key, Body: chunk, Date: date})
+		} else {
+			undated = append(undated, chunk)
+		}
+	}
+	slices.SortStableFunc(dated, compareSections)
+
+	var b strings.Builder
+	b.WriteString(fileHeader)
+	for _, chunk := range slices.Concat(undated, bodies(dated)) {
+		// The file's last section may lack the blank line that separates
+		// sections, and needn't stay last.
+		b.WriteString(strings.TrimRight(chunk, "\n") + "\n\n")
+	}
+	return strings.TrimRight(b.String(), "\n") + "\n"
+}
+
+// compareSections orders release sections newest first. Sections released
+// at the same time are ordered by version, highest first, then by project.
+func compareSections(a, b Section) int {
+	if c := b.Date.Compare(a.Date); c != 0 {
+		return c
+	}
+	na, va := splitKey(a.Key)
+	nb, vb := splitKey(b.Key)
+	if c := semver.Compare(vb, va); c != 0 {
+		return c
+	}
+	return strings.Compare(na, nb)
+}
+
+func bodies(sections []Section) []string {
+	out := make([]string, len(sections))
+	for i, s := range sections {
+		out[i] = s.Body
+	}
+	return out
+}
+
+// SectionProject returns the project name in a combined section key
+// ("name version"), or "" for a per-project key, which is just the version.
+func SectionProject(key string) string {
+	name, _ := splitKey(key)
+	return name
+}
+
+// splitKey splits a section key into its project name, empty for a
+// per-project key, and its version, normalized to a "v" prefix for semver.
+func splitKey(key string) (name, version string) {
+	if i := strings.LastIndexByte(key, ' '); i >= 0 {
+		name, version = key[:i], key[i+1:]
+	} else {
+		version = key
+	}
+	if !strings.HasPrefix(version, "v") {
+		version = "v" + version
+	}
+	return name, version
+}
+
+// sectionDate returns the date of a "## [key] - 2006-01-02" heading.
+func sectionDate(chunk string) (time.Time, bool) {
+	if _, ok := sectionKey(chunk); !ok {
+		return time.Time{}, false
+	}
+	heading, _, _ := strings.Cut(chunk, "\n")
+	_, date, ok := strings.Cut(heading, "] - ")
+	if !ok {
+		return time.Time{}, false
+	}
+	t, err := time.Parse("2006-01-02", strings.TrimSpace(date))
+	return t, err == nil
+}
+
+// splitSections splits s before every "## " heading line.
+func splitSections(s string) []string {
+	var chunks []string
+	start := 0
+	for i := 0; i < len(s); {
+		end := strings.IndexByte(s[i:], '\n')
+		if end < 0 {
+			end = len(s)
+		} else {
+			end += i + 1
+		}
+		if i > start && strings.HasPrefix(s[i:], "## ") {
+			chunks = append(chunks, s[start:i])
+			start = i
+		}
+		i = end
+	}
+	if start < len(s) {
+		chunks = append(chunks, s[start:])
+	}
+	return chunks
+}
+
+// sectionKey returns the bracketed text of a "## [key] - date" heading.
+func sectionKey(chunk string) (string, bool) {
+	rest, ok := strings.CutPrefix(chunk, "## [")
+	if !ok {
+		return "", false
+	}
+	key, _, ok := strings.Cut(rest, "]")
+	return key, ok
 }
 
 func stripFirstHeading(s string) string {

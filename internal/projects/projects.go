@@ -2,7 +2,9 @@ package projects
 
 import (
 	"fmt"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/bmatcuk/doublestar/v4"
@@ -259,31 +261,25 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+// BuildProjects builds the entrypoint projects among roots, or among every
+// configured project when roots is empty. Dependencies are built to wire up
+// the graph but are only returned when they are roots themselves.
 func BuildProjects(config *Config, roots []string) (map[string]Project, error) {
-	// if user defined projects via flag, only build those
-	filteredConfigs := config.Projects
-	if len(roots) > 0 {
-		for _, r := range roots {
-			conf, ok := config.Projects[r]
-			if !ok {
-				return nil, fmt.Errorf("project %q not found in config", r)
-			}
-			filteredConfigs[r] = conf
-		}
+	names := roots
+	if len(names) == 0 {
+		names = slices.Collect(maps.Keys(config.Projects))
 	}
 
-	allProjects := make(map[string]Project)
-	for name := range filteredConfigs {
-		proj, err := buildProject(name, config, allProjects, map[string]bool{})
+	built := make(map[string]Project)
+	entrypoints := make(map[string]Project)
+	for _, name := range names {
+		if _, ok := config.Projects[name]; !ok {
+			return nil, fmt.Errorf("project %q not found in config", name)
+		}
+		proj, err := buildProject(name, config, built, map[string]bool{})
 		if err != nil {
 			return nil, err
 		}
-		allProjects[name] = proj
-	}
-
-	entrypoints := make(map[string]Project)
-
-	for name, proj := range allProjects {
 		if proj.IsEntrypoint() {
 			entrypoints[name] = proj
 		}

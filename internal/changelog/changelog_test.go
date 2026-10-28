@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/arnoldvann/monotrack/internal/projects"
 	"github.com/arnoldvann/monotrack/internal/versioning"
 	"github.com/arnoldvann/monotrack/internal/versioning/conventional"
 )
@@ -173,5 +174,102 @@ func TestPrepend_ExistingFile(t *testing.T) {
 	v100 := strings.Index(s, "v1.0.0")
 	if v110 < 0 || v100 < 0 || v110 > v100 {
 		t.Errorf("new entry should appear before old: %s", s)
+	}
+}
+
+func TestSplice(t *testing.T) {
+	all := func(string) bool { return true }
+	none := func(string) bool { return false }
+
+	existing := fileHeader + "Some preamble.\n\n" +
+		"## [v1.1.0] - 2026-05-02\n\n- stale\n\n" +
+		"## [v1.0.0] - 2026-05-01\n\n- hand edited\n"
+	sections := []Section{
+		{Key: "v1.2.0", Body: "## [v1.2.0] - 2026-05-03\n\n- new\n\n", Date: time.Date(2026, 5, 3, 12, 0, 0, 0, time.UTC)},
+		{Key: "v1.1.0", Body: "## [v1.1.0] - 2026-05-02\n\n- fresh\n\n", Date: time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC)},
+	}
+
+	want := fileHeader + "Some preamble.\n\n" +
+		"## [v1.2.0] - 2026-05-03\n\n- new\n\n" +
+		"## [v1.1.0] - 2026-05-02\n\n- fresh\n\n" +
+		"## [v1.0.0] - 2026-05-01\n\n- hand edited\n"
+	if got := Splice(existing, sections, all); got != want {
+		t.Errorf("Splice keep:\n%s\nwant:\n%s", got, want)
+	}
+
+	want = fileHeader +
+		"## [v1.2.0] - 2026-05-03\n\n- new\n\n" +
+		"## [v1.1.0] - 2026-05-02\n\n- fresh\n"
+	if got := Splice(existing, sections, none); got != want {
+		t.Errorf("Splice replace:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// Regenerated sections from the same day keep their release order, even
+// across projects, since they carry the exact time.
+func TestSplice_SameDayByTime(t *testing.T) {
+	sections := []Section{
+		{Key: "web v1.0.1", Body: "## [web v1.0.1] - 2026-05-03\n\n- web\n\n", Date: time.Date(2026, 5, 3, 15, 0, 0, 0, time.UTC)},
+		{Key: "api v1.1.0", Body: "## [api v1.1.0] - 2026-05-03\n\n- api\n\n", Date: time.Date(2026, 5, 3, 9, 0, 0, 0, time.UTC)},
+	}
+	want := fileHeader +
+		"## [web v1.0.1] - 2026-05-03\n\n- web\n\n" +
+		"## [api v1.1.0] - 2026-05-03\n\n- api\n"
+	if got := Splice("", sections, func(string) bool { return false }); got != want {
+		t.Errorf("Splice:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// A kept section newer than the regenerated ones, e.g. a prerelease left out
+// by --skip-prereleases, lands in date order rather than below them.
+func TestSplice_OrdersByDate(t *testing.T) {
+	existing := fileHeader +
+		"## [v1.1.0-rc.1] - 2026-05-05\n\n- rc\n\n" +
+		"## [v1.0.0] - 2026-05-01\n\n- old\n"
+	sections := []Section{
+		{Key: "v1.0.1", Body: "## [v1.0.1] - 2026-05-03\n\n- patch\n\n", Date: time.Date(2026, 5, 3, 12, 0, 0, 0, time.UTC)},
+		{Key: "v1.0.2", Body: "## [v1.0.2] - 2026-05-03\n\n- same day\n\n", Date: time.Date(2026, 5, 3, 12, 0, 0, 0, time.UTC)},
+	}
+	want := fileHeader +
+		"## [v1.1.0-rc.1] - 2026-05-05\n\n- rc\n\n" +
+		"## [v1.0.2] - 2026-05-03\n\n- same day\n\n" +
+		"## [v1.0.1] - 2026-05-03\n\n- patch\n\n" +
+		"## [v1.0.0] - 2026-05-01\n\n- old\n"
+	if got := Splice(existing, sections, func(string) bool { return true }); got != want {
+		t.Errorf("Splice:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// Regenerating one project of a combined changelog keeps the others.
+func TestSplice_KeepsOtherProjects(t *testing.T) {
+	existing := fileHeader +
+		"## [web v1.1.0] - 2026-05-04\n\n- web\n\n" +
+		"## [api v2.0.0] - 2026-05-02\n\n- api stale\n\n" +
+		"## [api v1.9.0] - 2026-05-01\n\n- api removed tag\n"
+	sections := []Section{
+		{Key: "api v2.0.0", Body: "## [api v2.0.0] - 2026-05-02\n\n- api fresh\n\n", Date: time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC)},
+	}
+	keep := func(key string) bool { return SectionProject(key) != "api" }
+	want := fileHeader +
+		"## [web v1.1.0] - 2026-05-04\n\n- web\n\n" +
+		"## [api v2.0.0] - 2026-05-02\n\n- api fresh\n"
+	if got := Splice(existing, sections, keep); got != want {
+		t.Errorf("Splice:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestSections_CombinedKeys(t *testing.T) {
+	e := Entry{
+		Project:    projects.NewNodeProject("web", "apps/web", true, "node"),
+		NewVersion: "v1.0.0",
+		Date:       time.Date(2026, 5, 9, 0, 0, 0, 0, time.UTC),
+		Reason:     versioning.ReasonInitial,
+	}
+	s := Sections([]Entry{e}, true)[0]
+	if s.Key != "web v1.0.0" || !strings.HasPrefix(s.Body, "## [web v1.0.0] - 2026-05-09\n") {
+		t.Errorf("combined section = %+v", s)
+	}
+	if key, ok := sectionKey(s.Body); !ok || key != s.Key {
+		t.Errorf("sectionKey = %q, %v; want %q", key, ok, s.Key)
 	}
 }

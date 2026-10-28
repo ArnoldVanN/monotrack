@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	changelogcmd "github.com/arnoldvann/monotrack/cmd/changelog"
 	"github.com/arnoldvann/monotrack/cmd/deps"
 	projectscmd "github.com/arnoldvann/monotrack/cmd/projects"
 	"github.com/arnoldvann/monotrack/cmd/tag"
@@ -102,5 +103,6 @@ func init() {
 
 	rootCmd.AddCommand(tag.TagCmd)
 	rootCmd.AddCommand(deps.DepsCmd)
+	rootCmd.AddCommand(changelogcmd.ChangelogCmd)
 	rootCmd.AddCommand(projectscmd.ProjectsCmd)
 }
