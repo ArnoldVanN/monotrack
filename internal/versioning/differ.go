@@ -42,30 +42,36 @@ func ListProjectsChangedInDiff(diff []string) (map[string]bool, map[string]bool)
 // changedFiles groups the diff by owning project, dropping managed and
 // ignored files.
 func changedFiles(cfg *projects.Config, diff []string) map[string][]string {
-	// Files monotrack itself writes/rewrites during a release; editing only
-	// these should not flag a project as changed.
-	isManaged := func(path string) bool {
-		base := path
-		if i := strings.LastIndex(path, "/"); i >= 0 {
-			base = path[i+1:]
-		}
-		return base == "CHANGELOG.md"
-	}
-
 	files := map[string][]string{}
 	for name, pc := range cfg.Projects {
 		for _, l := range diff {
-			// "." means the project IS the repo root — any diff entry counts.
-			if pc.Path != "." && !strings.HasPrefix(l, pc.Path+"/") {
-				continue
+			if ownsFile(pc, l) {
+				files[name] = append(files[name], l)
 			}
-			if isManaged(l) || isIgnored(l, pc.Path, pc.Ignore) {
-				continue
-			}
-			files[name] = append(files[name], l)
 		}
 	}
 	return files
+}
+
+// ownsFile reports whether a change to file counts as a change to the
+// project: it's under the project's path, not ignored, and not a file
+// monotrack itself writes during a release.
+func ownsFile(pc projects.ProjectConfig, file string) bool {
+	// "." means the project IS the repo root — any file counts.
+	if pc.Path != "." && !strings.HasPrefix(file, pc.Path+"/") {
+		return false
+	}
+	return !isManaged(file) && !isIgnored(file, pc.Path, pc.Ignore)
+}
+
+// isManaged reports files monotrack writes/rewrites during a release;
+// editing only these should not flag a project as changed.
+func isManaged(path string) bool {
+	base := path
+	if i := strings.LastIndex(path, "/"); i >= 0 {
+		base = path[i+1:]
+	}
+	return base == "CHANGELOG.md"
 }
 
 // propagate marks every project changed by its own files or by a changed

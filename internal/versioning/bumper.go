@@ -412,7 +412,8 @@ func commitsForProject(base, head string, proj projects.Project) ([]git.RawCommi
 	}
 
 	var paths []string
-	if cfg, ok := app.State.Config.Projects[proj.Name()]; ok && cfg.Path != "" && cfg.Path != "." {
+	cfg, ok := app.State.Config.Projects[proj.Name()]
+	if ok && cfg.Path != "" && cfg.Path != "." {
 		paths = []string{cfg.Path}
 	}
 
@@ -424,6 +425,11 @@ func commitsForProject(base, head string, proj projects.Project) ([]git.RawCommi
 	filtered := raw[:0]
 	for _, c := range raw {
 		if isReleaseCommit(c.Message) {
+			continue
+		}
+		// Same rule as change detection, so a commit that only touched
+		// ignored files neither lands in the changelog nor picks the bump.
+		if ok && len(c.Files) > 0 && !slices.ContainsFunc(c.Files, func(f string) bool { return ownsFile(cfg, f) }) {
 			continue
 		}
 		filtered = append(filtered, c)

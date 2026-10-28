@@ -365,6 +365,9 @@ func GetHead() (string, error) {
 type RawCommit struct {
 	Hash    string
 	Message string
+	// Files the commit changed, limited to paths when LogBetween is given
+	// any. Empty for merge commits, which git log lists without a diff.
+	Files []string
 }
 
 // LogBetween returns commits in base..head that touched any of the given paths.
@@ -375,7 +378,8 @@ func LogBetween(base, head string, paths []string) ([]RawCommit, error) {
 		return nil, err
 	}
 
-	args := []string{"-C", repo, "log", fmt.Sprintf("%s..%s", base, head), "--format=%H%x1f%B%x1e"}
+	// Each record is \x1e hash \x1f body \x1d, followed by --name-only's file list.
+	args := []string{"-C", repo, "log", fmt.Sprintf("%s..%s", base, head), "--name-only", "--format=%x1e%H%x1f%B%x1d"}
 	if len(paths) > 0 {
 		args = append(args, "--")
 		args = append(args, paths...)
@@ -387,24 +391,23 @@ func LogBetween(base, head string, paths []string) ([]RawCommit, error) {
 		return nil, fmt.Errorf("git log failed: %w: %s", err, out)
 	}
 
-	trimmed := strings.TrimSpace(strings.Trim(string(out), "\x1e\n"))
-	if trimmed == "" {
-		return nil, nil
-	}
-
 	var commits []RawCommit
-	for rec := range strings.SplitSeq(trimmed, "\x1e") {
-		rec = strings.TrimSpace(rec)
-		if rec == "" {
+	for rec := range strings.SplitSeq(string(out), "\x1e") {
+		hash, rest, ok := strings.Cut(rec, "\x1f")
+		if !ok {
 			continue
 		}
-		parts := strings.SplitN(rec, "\x1f", 2)
-		if len(parts) != 2 {
-			continue
+		msg, names, _ := strings.Cut(rest, "\x1d")
+		var files []string
+		for f := range strings.SplitSeq(names, "\n") {
+			if f = strings.TrimSpace(f); f != "" {
+				files = append(files, f)
+			}
 		}
 		commits = append(commits, RawCommit{
-			Hash:    strings.TrimSpace(parts[0]),
-			Message: strings.TrimSpace(parts[1]),
+			Hash:    strings.TrimSpace(hash),
+			Message: strings.TrimSpace(msg),
+			Files:   files,
 		})
 	}
 

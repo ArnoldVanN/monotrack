@@ -223,3 +223,103 @@ func TestListProjectsChangedBetweenCommits_IgnorePatterns(t *testing.T) {
 		t.Errorf("web should be flagged (src/index.js changed)")
 	}
 }
+
+// TestCommitsForProject_IgnorePatterns ensures commits that only touched
+// ignored files stay out of a project's changelog and bump kind, for both a
+// subdirectory project and a repo-root project.
+func TestCommitsForProject_IgnorePatterns(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available on PATH")
+	}
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, out)
+		}
+	}
+	write := func(path, content string) {
+		t.Helper()
+		full := filepath.Join(dir, path)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	commit := func(msg string, files ...string) {
+		t.Helper()
+		for _, f := range files {
+			write(f, msg+"\n")
+		}
+		run("add", ".")
+		run("commit", "-q", "-m", msg)
+	}
+	run("init", "-q", "-b", "main")
+	run("config", "user.email", "test@example.com")
+	run("config", "user.name", "Test")
+	run("config", "commit.gpgsign", "false")
+
+	commit("feat: init", "apps/api/main.go", "apps/docs/index.md")
+	base, err := git.GetHead()
+	if err != nil {
+		t.Fatalf("GetHead: %v", err)
+	}
+	commit("feat(docs): docs only", "apps/docs/index.md", "apps/api/docs/guide.md")
+	commit("fix(api): real fix", "apps/api/main.go")
+	commit("chore: mixed", "apps/api/docs/guide.md", "apps/api/handler.go")
+	commit("chore: changelog only", "apps/api/CHANGELOG.md")
+	head, err := git.GetHead()
+	if err != nil {
+		t.Fatalf("GetHead: %v", err)
+	}
+
+	subjects := func(cs []git.RawCommit) []string {
+		var out []string
+		for _, c := range cs {
+			out = append(out, c.Message)
+		}
+		return out
+	}
+
+	tests := []struct {
+		name string
+		pc   projects.ProjectConfig
+		want []string
+	}{
+		{
+			name: "subdirectory project",
+			pc:   projects.ProjectConfig{Type: projects.ProjectTypeGo, Path: "apps/api", Ignore: []string{"docs/**"}},
+			want: []string{"chore: mixed", "fix(api): real fix"},
+		},
+		{
+			name: "root project",
+			pc:   projects.ProjectConfig{Type: projects.ProjectTypeGo, Path: ".", Ignore: []string{"apps/docs/**", "**/docs/**"}},
+			want: []string{"chore: mixed", "fix(api): real fix"},
+		},
+		{
+			name: "no ignore patterns",
+			pc:   projects.ProjectConfig{Type: projects.ProjectTypeGo, Path: "apps/api"},
+			want: []string{"chore: mixed", "fix(api): real fix", "feat(docs): docs only"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &projects.Config{Projects: map[string]projects.ProjectConfig{"api": tt.pc}}
+			proj := projects.NewGoProject("api", tt.pc.Path, true, "go")
+			app.Init(cfg, map[string]projects.Project{"api": proj})
+
+			got, err := commitsForProject(base, head, proj)
+			if err != nil {
+				t.Fatalf("commitsForProject: %v", err)
+			}
+			if g := subjects(got); strings.Join(g, "|") != strings.Join(tt.want, "|") {
+				t.Errorf("commits = %q, want %q", g, tt.want)
+			}
+		})
+	}
+}

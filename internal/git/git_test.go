@@ -418,6 +418,12 @@ func TestLogBetween(t *testing.T) {
 	if !strings.Contains(all[0].Message, "body line") {
 		t.Errorf("commit body not captured: %q", all[0].Message)
 	}
+	if got := strings.Join(all[0].Files, ","); got != "apps/api/main.go" {
+		t.Errorf("first commit files = %q, want apps/api/main.go", got)
+	}
+	if got := strings.Join(all[1].Files, ","); got != "apps/web/index.html" {
+		t.Errorf("second commit files = %q, want apps/web/index.html", got)
+	}
 
 	// Path-filtered: only api commits.
 	apiOnly, err := LogBetween(base, head, []string{"apps/api"})
