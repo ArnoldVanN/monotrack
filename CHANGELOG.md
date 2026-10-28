@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.15](https://github.com/ArnoldVanN/monotrack/compare/v0.9.14...v0.9.15) (2026-10-28)
+
+
+### Features
+
+* add changelog command to regenerate changelogs from tag history ([9442b85](https://github.com/ArnoldVanN/monotrack/commit/9442b853d5964f2b675973b9735b8e6347e53dfd))
+
+
+### Bug Fixes
+
+* check ignore list in commitsForProject ([70c208b](https://github.com/ArnoldVanN/monotrack/commit/70c208bcb16911ad5c94b53e47201f171b00f3af))
+
 ## [0.9.14](https://github.com/ArnoldVanN/monotrack/compare/v0.9.13...v0.9.14) (2026-10-04)
 
 
