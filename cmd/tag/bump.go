@@ -288,21 +288,35 @@ func ensurePR(head, base string, results []versioning.BumpResult) (string, error
 }
 
 func buildPRTitleBody(results []versioning.BumpResult, name string) (string, string) {
-	title := releaseSubject(len(results), name)
+	title := releaseSubject(results, name)
 	sorted := make([]versioning.BumpResult, len(results))
 	copy(sorted, results)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Project.Name() < sorted[j].Project.Name() })
 
 	var body strings.Builder
-	body.WriteString("Automated release proposal from monotrack.\n\n")
-	body.WriteString("| Project | Old | New |\n")
-	body.WriteString("|---|---|---|\n")
-	for _, r := range sorted {
-		fmt.Fprintf(&body, "| %s | %s | %s |\n", r.Project.Name(), r.OldVersion, r.NewVersion)
-	}
-	body.WriteString("\n")
 	body.WriteString(changelog.PRBody(buildEntries(sorted)))
-	body.WriteString("\nMerge this PR to publish the listed versions. To override changelog wording for a commit, edit the source commit/PR body with a `BEGIN_COMMIT_OVERRIDE` ... `END_COMMIT_OVERRIDE` block before merging.\n")
+	body.WriteString("\n---\n\n")
+
+	tags := make([]string, 0, len(sorted))
+	for _, r := range sorted {
+		tags = append(tags, "`"+app.State.Config.TagFor(r.Project.Name(), r.NewVersion)+"`")
+	}
+	fmt.Fprintf(&body, "Merging this PR tags %s.\n", strings.Join(tags, ", "))
+
+	body.WriteString(`
+<details>
+<summary>Rewording changelog entries</summary>
+
+The changelog is regenerated on every run, so edits pushed to this branch are overwritten. To reword an entry, add an override block to the source commit's body (with squash-merge, its PR description) before merging this PR:
+
+` + "```" + `
+BEGIN_COMMIT_OVERRIDE
+feat(api): user-facing description of the change
+END_COMMIT_OVERRIDE
+` + "```" + `
+
+</details>
+`)
 	return title, body.String()
 }
 
@@ -439,8 +453,14 @@ func dedupe(in []string) []string {
 // releaseSubject appends the config name so release commits and PR titles from
 // different monotrack configs in one repo stay distinguishable. undo reads the
 // label back, so keep the format in sync with releaseCommitName.
-func releaseSubject(n int, name string) string {
-	subject := fmt.Sprintf("chore(release): bump %d project(s)", n)
+func releaseSubject(results []versioning.BumpResult, name string) string {
+	var subject string
+	if len(results) == 1 {
+		r := results[0]
+		subject = fmt.Sprintf("chore(release): %s %s", r.Project.Name(), r.NewVersion)
+	} else {
+		subject = fmt.Sprintf("chore(release): bump %d projects", len(results))
+	}
 	if name != "" {
 		subject += fmt.Sprintf(" [%s]", name)
 	}
@@ -454,7 +474,7 @@ func buildReleaseMessage(results []versioning.BumpResult, name string) string {
 		return sorted[i].Project.Name() < sorted[j].Project.Name()
 	})
 
-	subject := releaseSubject(len(sorted), name)
+	subject := releaseSubject(sorted, name)
 
 	var body strings.Builder
 	for _, r := range sorted {

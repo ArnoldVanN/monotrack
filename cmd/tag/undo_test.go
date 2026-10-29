@@ -167,11 +167,21 @@ func TestParseReleaseCommit_ConfigName(t *testing.T) {
 }
 
 func TestReleaseSubject(t *testing.T) {
-	if got, want := releaseSubject(3, ""), "chore(release): bump 3 project(s)"; got != want {
-		t.Errorf("got %q, want %q", got, want)
+	api := versioning.BumpResult{Project: projects.NewGoProject("api", "apps/api", true, "go"), NewVersion: "v1.1.0"}
+	web := versioning.BumpResult{Project: projects.NewGoProject("web", "apps/web", true, "go"), NewVersion: "v0.3.0"}
+	cases := []struct {
+		results []versioning.BumpResult
+		name    string
+		want    string
+	}{
+		{[]versioning.BumpResult{api}, "", "chore(release): api v1.1.0"},
+		{[]versioning.BumpResult{api, web}, "", "chore(release): bump 2 projects"},
+		{[]versioning.BumpResult{api, web}, "charts", "chore(release): bump 2 projects [charts]"},
 	}
-	if got, want := releaseSubject(3, "charts"), "chore(release): bump 3 project(s) [charts]"; got != want {
-		t.Errorf("got %q, want %q", got, want)
+	for _, c := range cases {
+		if got := releaseSubject(c.results, c.name); got != c.want {
+			t.Errorf("got %q, want %q", got, c.want)
+		}
 	}
 }
 

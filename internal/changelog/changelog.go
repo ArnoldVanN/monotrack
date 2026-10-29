@@ -392,11 +392,18 @@ func prepend(path, block string) error {
 	return os.WriteFile(path, []byte(content), 0o644)
 }
 
-// PRBody renders a release PR body covering multiple projects. Breaking
-// changes from all projects are collected into a single top-level section
-// (with per-project subsections); each project then gets its own section
-// containing the remaining changes.
+// PRBody renders the changelog part of a release PR body. A single project
+// gets its release notes directly under a version heading. Multiple projects
+// get a version table, then breaking changes from all projects collected
+// into one section (with per-project subsections), then a section per
+// project with the remaining changes.
 func PRBody(entries []Entry) string {
+	if len(entries) == 1 {
+		e := entries[0]
+		return fmt.Sprintf("## %s (%s)\n\n", e.NewVersion, e.Date.Format("2006-01-02")) +
+			strings.TrimRight(stripFirstHeading(Render(e)), "\n") + "\n"
+	}
+
 	sorted := make([]Entry, len(entries))
 	copy(sorted, entries)
 	sort.Slice(sorted, func(i, j int) bool {
@@ -404,6 +411,12 @@ func PRBody(entries []Entry) string {
 	})
 
 	var b strings.Builder
+
+	b.WriteString("| Project | Version |\n|---|---|\n")
+	for _, e := range sorted {
+		fmt.Fprintf(&b, "| %s | %s |\n", e.Project.Name(), versionChange(e))
+	}
+	b.WriteString("\n")
 
 	type projBreaking struct {
 		name    string
@@ -426,7 +439,7 @@ func PRBody(entries []Entry) string {
 	}
 
 	if len(allBreaking) > 0 {
-		b.WriteString("## ⚠ BREAKING CHANGES\n\n")
+		b.WriteString("## ⚠ Breaking Changes\n\n")
 		for _, pb := range allBreaking {
 			fmt.Fprintf(&b, "### %s\n\n", pb.name)
 			for _, c := range pb.commits {
@@ -437,8 +450,7 @@ func PRBody(entries []Entry) string {
 	}
 
 	for _, e := range sorted {
-		dateStr := e.Date.Format("2006-01-02")
-		fmt.Fprintf(&b, "## %s %s (%s)\n\n", e.Project.Name(), e.NewVersion, dateStr)
+		fmt.Fprintf(&b, "## %s %s\n\n", e.Project.Name(), e.NewVersion)
 
 		byType := make(map[conventional.CommitType][]conventional.ParsedCommit)
 		conventionalCount := 0
@@ -474,11 +486,20 @@ func PRBody(entries []Entry) string {
 			b.WriteString(renderFallback(e))
 		} else if !nonBreakingRendered {
 			// only breaking commits — point readers to the section above
-			b.WriteString("_See breaking changes above._\n\n")
+			b.WriteString("_Breaking changes only, see above._\n\n")
 		}
 	}
 
-	return b.String()
+	return strings.TrimRight(b.String(), "\n") + "\n"
+}
+
+// versionChange renders "`old` → `new`", or just "`new` (new)" for a
+// project's first release.
+func versionChange(e Entry) string {
+	if e.OldVersion == "" || e.Reason == versioning.ReasonInitial {
+		return fmt.Sprintf("`%s` (new)", e.NewVersion)
+	}
+	return fmt.Sprintf("`%s` → `%s`", e.OldVersion, e.NewVersion)
 }
 
 // RenderForPrint returns a stdout-friendly representation for dry runs.

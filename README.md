@@ -79,7 +79,7 @@ monotrack tag bump --no-pr
 In `--no-pr` mode, `tag bump`:
 
 1. Writes and stages the changelog files.
-2. Creates a `chore(release): bump N project(s)` commit on top of `HEAD`.
+2. Creates a `chore(release): bump N projects` commit (`chore(release): <name> <version>` when only one project is released) on top of `HEAD`.
 3. Tags the **new** commit (so the tag's tree contains its own changelog).
 4. Atomically pushes the branch and the new tags in one `git push --atomic`.
 
@@ -271,7 +271,7 @@ projects:
     path: infra/charts/api
 ```
 
-Release commits and PR titles from that config read `chore(release): bump 3 project(s) [charts]`.
+Release commits and PR titles from that config read `chore(release): bump 3 projects [charts]`.
 `tag undo` reads the label back and refuses to run when it doesn't match the loaded config, since tags are derived from the loaded config.
 
 ## Project discovery
