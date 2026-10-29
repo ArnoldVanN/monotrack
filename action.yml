@@ -22,6 +22,10 @@ inputs:
     description: "CLI version (release tag, e.g. `v0.8.2`). When unset, defaults to the latest release matching the action's major (e.g. `v0` when called as `@v0` or `@v0.8.3`). Errors if the action ref isn't semver-shaped — set explicitly when pinning to a branch or SHA."
     default: ""
     required: false
+  token:
+    description: "Token used for GitHub API calls, such as opening or updating the release PR. Defaults to `github.token`. Pass a GitHub App or PAT token so workflows run on the release PR without maintainer approval."
+    default: ${{ github.token }}
+    required: false
 outputs:
   output:
     value: ${{ steps.run.outputs.output }}
@@ -38,7 +42,7 @@ runs:
       id: run
       shell: bash
       env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ inputs.token }}
       run: |
         set -euo pipefail
 

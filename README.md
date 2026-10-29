@@ -375,9 +375,15 @@ Imports are read for the host's `GOOS`/`GOARCH` and default build tags. Set `GOO
 
 **Optional** CLI version (docker image tag). When unset, defaults to the moving `v<major>` tag derived from the action ref — e.g. `uses: arnoldvann/monotrack@v0.7.3` resolves to image `v0`, which tracks the latest patch of that major. Set explicitly when pinning the action to a branch or SHA; otherwise the action errors out.
 
+### `token`
+
+**Optional** Token used for GitHub API calls, such as opening or updating the release PR. Defaults to `github.token`.
+
+A PR opened with the default `GITHUB_TOKEN` is authored by `github-actions[bot]`, so `pull_request` workflows on it wait for maintainer approval. Pass a GitHub App or PAT token here to have them run normally.
+
 ### Authentication
 
-The action does not take a token input. Anything that needs to push (`tag bump`) authenticates using the credential `actions/checkout` persisted in the workspace's `.git/config`. To use a token other than the default `GITHUB_TOKEN` (e.g. a GitHub App token that can bypass branch protection), pass it on `actions/checkout`'s `token:` input — see the example below.
+Git pushes (`tag bump`) authenticate using the credential `actions/checkout` persisted in the workspace's `.git/config`; API calls such as opening the release PR use the `token` input. To use a token other than the default `GITHUB_TOKEN` (e.g. a GitHub App token that can bypass branch protection), pass it on both `actions/checkout`'s `token:` input and this action's `token:` input. See the example below.
 
 ## Outputs
 
@@ -442,6 +448,7 @@ jobs:
         with:
           # version is optional; when unset it tracks the action ref's major (e.g. `v0`)
           command: tag bump # Optional, defaults to 'tag bump'
+          token: ${{ steps.app-token.outputs.token }} # Optional, opens the release PR as the App
           args: -o json --pre-release # Optional
           config: monotrack.yaml # Optional
 
