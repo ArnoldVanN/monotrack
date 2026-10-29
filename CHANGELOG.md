@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.17](https://github.com/ArnoldVanN/monotrack/compare/v0.9.16...v0.9.17) (2026-10-29)
+
+
+### Features
+
+* pass token to action ([de638c8](https://github.com/ArnoldVanN/monotrack/commit/de638c88eb073ddd6fb697bce2d7e2b2f664e6a9))
+
 ## [0.9.16](https://github.com/ArnoldVanN/monotrack/compare/v0.9.15...v0.9.16) (2026-10-29)
 
 
