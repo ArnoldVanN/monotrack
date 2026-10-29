@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.16](https://github.com/ArnoldVanN/monotrack/compare/v0.9.15...v0.9.16) (2026-10-29)
+
+
+### Features
+
+* preMajor config option ([598db95](https://github.com/ArnoldVanN/monotrack/commit/598db95753bab6e8aa4e4c97125a5ee11707eeb0))
+
 ## [0.9.15](https://github.com/ArnoldVanN/monotrack/compare/v0.9.14...v0.9.15) (2026-10-28)
 
 
