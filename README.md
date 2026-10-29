@@ -224,6 +224,18 @@ monotrack tag bump --dry
 api/v0.0.2
 ```
 
+### Pre-1.0 bumps
+
+Set `preMajor: true` to shift bumps down one level while a project is below `1.0.0`: breaking changes bump the minor and features bump the patch. From `1.0.0` on, bumps follow the commits as usual.
+
+```yaml
+projects:
+  api:
+    type: go
+    path: apps/api
+    preMajor: true
+```
+
 ### Custom changelog path
 
 When the repo defines a single project, or when `--single-changelog` is passed, the combined `CHANGELOG.md` is written to the repo root by default. Override the location via:

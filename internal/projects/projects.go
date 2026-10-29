@@ -91,9 +91,12 @@ func (r ReleaseConfig) ResolveReleaseBranch(base string) string {
 }
 
 type ProjectConfig struct {
-	Type        projectType `mapstructure:"type"`
-	Path        string      `mapstructure:"path"`
-	Versioning  string      `mapstructure:"versioning"`
+	Type       projectType `mapstructure:"type"`
+	Path       string      `mapstructure:"path"`
+	Versioning string      `mapstructure:"versioning"`
+	// PreMajor shifts bumps down one level while the version is below 1.0.0:
+	// breaking changes bump the minor and features bump the patch.
+	PreMajor    bool        `mapstructure:"preMajor"`
 	DependsOn   []string    `mapstructure:"dependsOn"`
 	Build       BuildConfig `mapstructure:"build"`
 	Ignore      []string    `mapstructure:"ignore"`

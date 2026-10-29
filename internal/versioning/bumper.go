@@ -226,6 +226,9 @@ func computeResults(
 			kind = *kindOverride
 		} else {
 			kind = deriveKind(parsed)
+			if app.State.Config.Projects[name].PreMajor {
+				kind = preMajorKind(info.version, kind)
+			}
 		}
 
 		newVer, err := bumpVersion(info.version, kind, preRelease)
@@ -460,6 +463,21 @@ func deriveKind(commits []conventional.ParsedCommit) BumpKind {
 		return MinorBump
 	default:
 		return PatchBump
+	}
+}
+
+// preMajorKind shifts kind down one level for versions below 1.0.0.
+func preMajorKind(version string, kind BumpKind) BumpKind {
+	if semver.Major(version) != "v0" {
+		return kind
+	}
+	switch kind {
+	case MajorBump:
+		return MinorBump
+	case MinorBump:
+		return PatchBump
+	default:
+		return kind
 	}
 }
 

@@ -53,6 +53,27 @@ func TestBumpVersion(t *testing.T) {
 	}
 }
 
+func TestPreMajorKind(t *testing.T) {
+	tests := []struct {
+		in   string
+		kind BumpKind
+		want BumpKind
+	}{
+		{"v0.0.0", MajorBump, MinorBump},
+		{"v0.3.1", MinorBump, PatchBump},
+		{"v0.3.1", PatchBump, PatchBump},
+		{"v0.4.0-rc.1", MajorBump, MinorBump},
+		{"v1.2.3", MajorBump, MajorBump},
+		{"v1.2.3", MinorBump, MinorBump},
+	}
+
+	for _, tt := range tests {
+		if got := preMajorKind(tt.in, tt.kind); got != tt.want {
+			t.Errorf("preMajorKind(%q, %q) = %q, want %q", tt.in, tt.kind, got, tt.want)
+		}
+	}
+}
+
 // TestBumpVersionAlwaysSemverCompliant asserts every generated version is a
 // SemVer 2.0 string
 func TestBumpVersionAlwaysSemverCompliant(t *testing.T) {
