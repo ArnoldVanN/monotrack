@@ -179,7 +179,7 @@ func TestDiscoverIgnoresDeletedFiles(t *testing.T) {
 
 func TestRender(t *testing.T) {
 	cfg := &projects.Config{Projects: map[string]projects.ProjectConfig{
-		"web":  {Type: projects.ProjectTypeNode, Path: "apps/web", Build: projects.BuildConfig{Entrypoint: true}, DependsOn: []string{"ui"}},
+		"web":  {Type: projects.ProjectTypeNode, Path: "apps/web", Versioned: true, DependsOn: []string{"ui"}},
 		"ui":   {Type: projects.ProjectTypeNode, Path: "packages/ui"},
 		"true": {Type: projects.ProjectTypeGo, Path: "odd/true"},
 	}}
@@ -198,8 +198,7 @@ func TestRender(t *testing.T) {
   web:
     type: node
     path: apps/web
-    build:
-      entrypoint: true
+    versioned: true
     dependsOn:
       - ui
 `
@@ -220,7 +219,7 @@ func writeFiles(t *testing.T, files map[string]string) {
 	}
 }
 
-func TestGenerateFillsDependsOnAndEntrypoints(t *testing.T) {
+func TestGenerateFillsDependsOnAndVersioned(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("go not available on PATH")
 	}
@@ -251,8 +250,8 @@ func TestGenerateFillsDependsOnAndEntrypoints(t *testing.T) {
 	}
 
 	for name, want := range map[string]struct {
-		entrypoint bool
-		deps       []string
+		versioned bool
+		deps      []string
 	}{
 		"api":    {true, []string{"shared"}},
 		"shared": {false, nil},
@@ -260,8 +259,8 @@ func TestGenerateFillsDependsOnAndEntrypoints(t *testing.T) {
 		"ui":     {false, nil},
 	} {
 		pc := cfg.Projects[name]
-		if pc.Build.Entrypoint != want.entrypoint {
-			t.Errorf("%s entrypoint = %v, want %v", name, pc.Build.Entrypoint, want.entrypoint)
+		if pc.Versioned != want.versioned {
+			t.Errorf("%s versioned = %v, want %v", name, pc.Versioned, want.versioned)
 		}
 		if len(pc.DependsOn) != len(want.deps) || (len(want.deps) > 0 && !slices.Equal(pc.DependsOn, want.deps)) {
 			t.Errorf("%s dependsOn = %v, want %v", name, pc.DependsOn, want.deps)
@@ -287,8 +286,8 @@ func TestGenerateFallsBackWhenDetectionFails(t *testing.T) {
 		t.Fatalf("Generate err = %v, want a detection error", err)
 	}
 	for name, pc := range cfg.Projects {
-		if !pc.Build.Entrypoint || len(pc.DependsOn) != 0 {
-			t.Errorf("%s = %+v, want an entrypoint without dependsOn", name, pc)
+		if !pc.Versioned || len(pc.DependsOn) != 0 {
+			t.Errorf("%s = %+v, want versioned without dependsOn", name, pc)
 		}
 	}
 }
@@ -400,7 +399,7 @@ projects:
 `
 	cfg := &projects.Config{Projects: map[string]projects.ProjectConfig{
 		"api": {Type: projects.ProjectTypeGo, Path: "apps/api"},
-		"web": {Type: projects.ProjectTypeNode, Path: "apps/web", Build: projects.BuildConfig{Entrypoint: true}, DependsOn: []string{"ui"}},
+		"web": {Type: projects.ProjectTypeNode, Path: "apps/web", Versioned: true, DependsOn: []string{"ui"}},
 		"ui":  {Type: projects.ProjectTypeNode, Path: "packages/ui"},
 	}}
 
@@ -414,8 +413,7 @@ projects:
     web:
         type: node
         path: apps/web
-        build:
-            entrypoint: true
+        versioned: true
         dependsOn:
             - ui
 `
@@ -435,8 +433,8 @@ func TestCompleteLeavesConfiguredProjectsAlone(t *testing.T) {
 	})
 
 	cfg := &projects.Config{Projects: map[string]projects.ProjectConfig{
-		"web":    {Type: projects.ProjectTypeNode, Path: "apps/web", Build: projects.BuildConfig{Entrypoint: true}},
-		"docs":   {Type: projects.ProjectTypeNode, Path: "apps/docs", Build: projects.BuildConfig{Entrypoint: true}},
+		"web":    {Type: projects.ProjectTypeNode, Path: "apps/web", Versioned: true},
+		"docs":   {Type: projects.ProjectTypeNode, Path: "apps/docs", Versioned: true},
 		"ui":     {Type: projects.ProjectTypeNode, Path: "packages/ui"},
 		"tokens": {Type: projects.ProjectTypeNode, Path: "packages/tokens"},
 	}}
@@ -445,13 +443,13 @@ func TestCompleteLeavesConfiguredProjectsAlone(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Complete: %v", err)
 	}
-	if got := cfg.Projects["ui"]; got.Build.Entrypoint || !slices.Equal(got.DependsOn, []string{"tokens"}) {
-		t.Errorf("ui = %+v, want a non-entrypoint depending on tokens", got)
+	if got := cfg.Projects["ui"]; got.Versioned || !slices.Equal(got.DependsOn, []string{"tokens"}) {
+		t.Errorf("ui = %+v, want an unversioned depending on tokens", got)
 	}
-	if got := cfg.Projects["tokens"]; got.Build.Entrypoint || len(got.DependsOn) != 0 {
-		t.Errorf("tokens = %+v, want a non-entrypoint leaf", got)
+	if got := cfg.Projects["tokens"]; got.Versioned || len(got.DependsOn) != 0 {
+		t.Errorf("tokens = %+v, want an unversioned leaf", got)
 	}
-	if got := cfg.Projects["web"]; !got.Build.Entrypoint || len(got.DependsOn) != 0 {
+	if got := cfg.Projects["web"]; !got.Versioned || len(got.DependsOn) != 0 {
 		t.Errorf("web = %+v, want it untouched", got)
 	}
 	want := []string{"web now depends on ui; run `monotrack deps sync` to record it"}

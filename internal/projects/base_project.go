@@ -5,7 +5,7 @@ type BaseProject struct {
 	path         string
 	typeName     projectType
 	dependencies []Project
-	entrypoint   bool
+	versioned    bool
 }
 
 func (p *BaseProject) Name() string {
@@ -28,6 +28,6 @@ func (p *BaseProject) ListDependencies() []Project {
 	return p.dependencies
 }
 
-func (p *BaseProject) IsEntrypoint() bool {
-	return p.entrypoint
+func (p *BaseProject) IsVersioned() bool {
+	return p.versioned
 }

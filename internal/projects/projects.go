@@ -96,8 +96,13 @@ type ProjectConfig struct {
 	Versioning string      `mapstructure:"versioning"`
 	// PreMajor shifts bumps down one level while the version is below 1.0.0:
 	// breaking changes bump the minor and features bump the patch.
-	PreMajor    bool        `mapstructure:"preMajor"`
-	DependsOn   []string    `mapstructure:"dependsOn"`
+	PreMajor  bool     `mapstructure:"preMajor"`
+	DependsOn []string `mapstructure:"dependsOn"`
+	// Versioned projects get their own tags and are the ones `compare` and
+	// `tag bump` report. The rest only pass their changes on to the projects
+	// that depend on them.
+	Versioned bool `mapstructure:"versioned"`
+	// Build is where Versioned used to live, as build.entrypoint.
 	Build       BuildConfig `mapstructure:"build"`
 	Ignore      []string    `mapstructure:"ignore"`
 	Granularity string      `mapstructure:"granularity"`
@@ -109,7 +114,25 @@ const (
 )
 
 type BuildConfig struct {
+	// Deprecated: use ProjectConfig.Versioned. MigrateDeprecated moves it there.
 	Entrypoint bool `mapstructure:"entrypoint"`
+}
+
+// MigrateDeprecated moves build.entrypoint onto versioned and returns the
+// projects that still set it.
+func (c *Config) MigrateDeprecated() []string {
+	var names []string
+	for name, pc := range c.Projects {
+		if !pc.Build.Entrypoint {
+			continue
+		}
+		pc.Versioned = true
+		pc.Build.Entrypoint = false
+		c.Projects[name] = pc
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names
 }
 
 type projectType string
@@ -137,7 +160,7 @@ type Project interface {
 	GetType() projectType
 	AddDependency(Project)
 	ListDependencies() []Project
-	IsEntrypoint() bool
+	IsVersioned() bool
 }
 
 // IsSingleProject reports whether the config defines exactly one project.
@@ -247,24 +270,12 @@ func (c *Config) Validate() error {
 			}
 		}
 
-		// remove for now since we're only outputting entrypoints now, so helm charts need to be entrypoint too
-		// if pc.Build.Entrypoint {
-		// 	switch pc.Type {
-		// 	case ProjectTypeNode, ProjectTypeGo:
-		// 		// ok
-		// 	default:
-		// 		return fmt.Errorf(
-		// 			"project %q: build.entrypoint is not allowed for project type %q",
-		// 			name, pc.Type,
-		// 		)
-		// 	}
-		// }
 	}
 
 	return nil
 }
 
-// BuildProjects builds the entrypoint projects among roots, or among every
+// BuildProjects builds the versioned projects among roots, or among every
 // configured project when roots is empty. Dependencies are built to wire up
 // the graph but are only returned when they are roots themselves.
 func BuildProjects(config *Config, roots []string) (map[string]Project, error) {
@@ -274,7 +285,7 @@ func BuildProjects(config *Config, roots []string) (map[string]Project, error) {
 	}
 
 	built := make(map[string]Project)
-	entrypoints := make(map[string]Project)
+	versioned := make(map[string]Project)
 	for _, name := range names {
 		if _, ok := config.Projects[name]; !ok {
 			return nil, fmt.Errorf("project %q not found in config", name)
@@ -283,12 +294,12 @@ func BuildProjects(config *Config, roots []string) (map[string]Project, error) {
 		if err != nil {
 			return nil, err
 		}
-		if proj.IsEntrypoint() {
-			entrypoints[name] = proj
+		if proj.IsVersioned() {
+			versioned[name] = proj
 		}
 	}
 
-	return entrypoints, nil
+	return versioned, nil
 }
 
 func buildProject(name string, config *Config, built map[string]Project, visiting map[string]bool) (Project, error) {
@@ -306,11 +317,11 @@ func buildProject(name string, config *Config, built map[string]Project, visitin
 	var p Project
 	switch cfg.Type {
 	case ProjectTypeGo:
-		p = NewGoProject(name, cfg.Path, cfg.Build.Entrypoint, cfg.Type)
+		p = NewGoProject(name, cfg.Path, cfg.Versioned, cfg.Type)
 	case ProjectTypeNode:
-		p = NewNodeProject(name, cfg.Path, cfg.Build.Entrypoint, cfg.Type)
+		p = NewNodeProject(name, cfg.Path, cfg.Versioned, cfg.Type)
 	case ProjectTypeHelm:
-		p = NewHelmProject(name, cfg.Path, cfg.Build.Entrypoint, cfg.Type)
+		p = NewHelmProject(name, cfg.Path, cfg.Versioned, cfg.Type)
 	default:
 		return nil, fmt.Errorf("unsupported project type %q", cfg.Type)
 	}

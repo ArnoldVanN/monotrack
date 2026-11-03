@@ -318,16 +318,16 @@ func Generate(root string, res *Result) (*projects.Config, []string, error) {
 	return cfg, notes, err
 }
 
-// Complete fills dependsOn and build.entrypoint for the added projects of cfg.
+// Complete fills dependsOn and versioned for the added projects of cfg.
 // Detection needs the repository at root to be the working directory. When it
 // fails, the added projects get no dependsOn and are all marked as
-// entrypoints, so none goes unreported, and the error is returned alongside.
+// versioned, so none goes unreported, and the error is returned alongside.
 func Complete(root string, cfg *projects.Config, added []string) ([]string, error) {
 	detected, err := dependencies.Resolve(root, cfg, false)
 	if err != nil {
 		for _, name := range added {
 			pc := cfg.Projects[name]
-			pc.Build.Entrypoint = true
+			pc.Versioned = true
 			cfg.Projects[name] = pc
 		}
 		return nil, fmt.Errorf("detecting dependencies: %w", err)
@@ -342,7 +342,7 @@ func Complete(root string, cfg *projects.Config, added []string) ([]string, erro
 	for _, name := range added {
 		pc := cfg.Projects[name]
 		pc.DependsOn = detected[name]
-		pc.Build.Entrypoint = !depended[name]
+		pc.Versioned = !depended[name]
 		cfg.Projects[name] = pc
 	}
 
@@ -401,11 +401,8 @@ func AddProjects(src []byte, cfg *projects.Config, names []string) ([]byte, erro
 func projectNode(pc projects.ProjectConfig) *yaml.Node {
 	p := &yaml.Node{Kind: yaml.MappingNode}
 	p.Content = append(p.Content, scalar("type"), scalar(string(pc.Type)), scalar("path"), scalar(pc.Path))
-	if pc.Build.Entrypoint {
-		p.Content = append(p.Content, scalar("build"), &yaml.Node{
-			Kind:    yaml.MappingNode,
-			Content: []*yaml.Node{scalar("entrypoint"), {Kind: yaml.ScalarNode, Tag: "!!bool", Value: "true"}},
-		})
+	if pc.Versioned {
+		p.Content = append(p.Content, scalar("versioned"), &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: "true"})
 	}
 	if len(pc.DependsOn) > 0 {
 		seq := &yaml.Node{Kind: yaml.SequenceNode}

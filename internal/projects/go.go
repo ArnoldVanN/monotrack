@@ -4,13 +4,13 @@ type GoProject struct {
 	*BaseProject
 }
 
-func NewGoProject(name, path string, entry bool, t projectType) Project {
+func NewGoProject(name, path string, versioned bool, t projectType) Project {
 	return &GoProject{
 		BaseProject: &BaseProject{
-			name:       name,
-			path:       path,
-			entrypoint: entry,
-			typeName:   t,
+			name:      name,
+			path:      path,
+			versioned: versioned,
+			typeName:  t,
 		},
 	}
 }

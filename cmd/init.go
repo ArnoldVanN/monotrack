@@ -26,7 +26,7 @@ Writes a config listing every project found in the repository: a directory with
 a go.mod, package.json or Chart.yaml becomes a project of that type. Ignored
 files, node workspace roots and packaged helm subcharts are skipped. dependsOn
 is filled from detected dependencies, and every project nothing else depends
-on is marked as an entrypoint.
+on is marked as versioned.
 
 An existing config is never overwritten; use --dry to preview what would be
 generated for it.`,
@@ -93,7 +93,7 @@ func generateConfig() ([]byte, error) {
 	cfg, _, err := discovery.Generate(root, res)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: %v\n", err)
-		fmt.Fprintln(os.Stderr, "the config has no dependsOn and marks every project as an entrypoint; fix the error, then run `monotrack deps sync` and review the entrypoints")
+		fmt.Fprintln(os.Stderr, "the config has no dependsOn and marks every project as versioned; fix the error, then run `monotrack deps sync` and review which projects are versioned")
 	}
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("generated config is invalid: %w", err)

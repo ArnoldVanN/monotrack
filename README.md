@@ -146,22 +146,19 @@ projects:
   web:
     type: node
     path: apps/web
-    build:
-      entrypoint: true # Only entrypoints are reported by `compare` and bumped by `tag bump`
+    versioned: true # Only versioned projects are reported by `compare` and bumped by `tag bump`
     dependsOn:
       - ui
   docs:
     type: node
     path: apps/docs
-    build:
-      entrypoint: true
+    versioned: true
     dependsOn:
       - ui
   api:
     type: go
     path: apps/api
-    build:
-      entrypoint: true
+    versioned: true
     dependsOn:
       - go-shared
   ui:
@@ -186,8 +183,7 @@ projects:
   api:
     type: go
     path: apps/api
-    build:
-      entrypoint: true
+    versioned: true
     ignore:
       - "docs/**"
       - "**/*_test.go"
@@ -200,8 +196,7 @@ To use as an include-only list (ignore everything except specific paths):
 web:
   type: node
   path: apps/web
-  build:
-    entrypoint: true
+  versioned: true
   ignore:
     - "**" # ignore everything...
     - "!src/**" # ...except src
@@ -215,7 +210,9 @@ monotrack compare
 api
 ```
 
-Only entrypoints are ever listed. `nested-shared` and `go-shared` are internal dependencies: a change in them propagates to the entrypoints that depend on them, but they are never reported themselves. `web` and `docs` are untouched here because they depend on `ui`, not on `go-shared`.
+Only versioned projects are ever listed. `nested-shared` and `go-shared` are internal dependencies: a change in them propagates to the versioned projects that depend on them, but they are never reported themselves. `web` and `docs` are untouched here because they depend on `ui`, not on `go-shared`. A library that is published on its own, such as an SDK, sets `versioned: true` too and is then reported and tagged like any other.
+
+`versioned: true` was called `build.entrypoint: true` before. The old key still works and prints a deprecation warning.
 
 Bumping tags the same project:
 
@@ -276,7 +273,7 @@ Release commits and PR titles from that config read `chore(release): bump 3 proj
 
 ## Project discovery
 
-`monotrack init` generates the config from the repository: every directory with a `go.mod`, `package.json` or `Chart.yaml` becomes a project named after its directory, with `dependsOn` from [dependency detection](#dependency-detection). Projects nothing else depends on become entrypoints. Gitignored files, workspace roots and packaged subcharts are skipped.
+`monotrack init` generates the config from the repository: every directory with a `go.mod`, `package.json` or `Chart.yaml` becomes a project named after its directory, with `dependsOn` from [dependency detection](#dependency-detection). Projects nothing else depends on are marked `versioned`. Gitignored files, workspace roots and packaged subcharts are skipped.
 
 ```bash
 monotrack init --dry            # preview the generated config
@@ -536,7 +533,7 @@ mv monotrack /usr/local/bin/
 ```
 
 1. Run `monotrack init` from the repository root. It writes a `monotrack.yaml` listing every project it finds, and an empty `.monotrack-manifest.yaml`. The manifest is read/written by the PR-based release flow; commit it to version control so CI runs can read it across jobs.
-2. Review the generated config (see [Project discovery](#project-discovery)), mainly the project names and which projects are entrypoints. Add `monotrack projects check` to CI to catch projects added later.
+2. Review the generated config (see [Project discovery](#project-discovery)), mainly the project names and which projects are versioned. Add `monotrack projects check` to CI to catch projects added later.
 3. Run `monotrack compare` to list the projects you've changed against the default branch
 
 ### Examples
@@ -580,7 +577,7 @@ api/v0.1.0
 By default `compare` runs from the default branch (`origin/HEAD`, falling back to `origin/main`) to your **working tree**, so uncommitted edits and new untracked files count. `.gitignore` is respected.
 
 ```bash
-# which entrypoints have I affected, right now, versus the default branch?
+# which versioned projects have I affected, right now, versus the default branch?
 monotrack compare
 api
 web

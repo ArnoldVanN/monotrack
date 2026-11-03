@@ -26,7 +26,7 @@ var (
 		Short: "Add the projects the config does not list",
 		Long: `Add the projects the config does not list.
 
-New projects get their dependsOn from detection, and are entrypoints when
+New projects get their dependsOn from detection, and are versioned when
 nothing else depends on them. Configured projects are left alone, even when
 they now depend on a new project; run "deps sync" to record that. The rest of
 the document, comments included, is preserved.`,
@@ -54,7 +54,7 @@ the document, comments included, is preserved.`,
 			notes, err := discovery.Complete(root, &merged, added)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "warning: %v\n", err)
-				fmt.Fprintln(os.Stderr, "new projects are added without dependsOn and as entrypoints; fix the error, then run `monotrack deps sync` and review the entrypoints")
+				fmt.Fprintln(os.Stderr, "new projects are added without dependsOn and as versioned; fix the error, then run `monotrack deps sync` and review which projects are versioned")
 			}
 
 			for _, name := range added {
@@ -96,8 +96,8 @@ the document, comments included, is preserved.`,
 
 func printAdded(name string, pc projects.ProjectConfig) {
 	fmt.Printf("+ %s (%s, %s)", name, pc.Type, pc.Path)
-	if pc.Build.Entrypoint {
-		fmt.Print(" entrypoint")
+	if pc.Versioned {
+		fmt.Print(" versioned")
 	}
 	if len(pc.DependsOn) > 0 {
 		fmt.Printf(" dependsOn %v", pc.DependsOn)

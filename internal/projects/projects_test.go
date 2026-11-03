@@ -7,11 +7,10 @@ import (
 )
 
 func TestBuildProjects(t *testing.T) {
-	entry := BuildConfig{Entrypoint: true}
 	cfg := &Config{Projects: map[string]ProjectConfig{
-		"web":    {Type: ProjectTypeNode, Path: "apps/web", Build: entry, DependsOn: []string{"api", "lib"}},
-		"api":    {Type: ProjectTypeGo, Path: "apps/api", Build: entry, DependsOn: []string{"lib"}},
-		"worker": {Type: ProjectTypeGo, Path: "apps/worker", Build: entry},
+		"web":    {Type: ProjectTypeNode, Path: "apps/web", Versioned: true, DependsOn: []string{"api", "lib"}},
+		"api":    {Type: ProjectTypeGo, Path: "apps/api", Versioned: true, DependsOn: []string{"lib"}},
+		"worker": {Type: ProjectTypeGo, Path: "apps/worker", Versioned: true},
 		"lib":    {Type: ProjectTypeGo, Path: "libs/lib"},
 	}}
 
@@ -51,5 +50,21 @@ func TestBuildProjects(t *testing.T) {
 
 	if _, err := BuildProjects(cfg, []string{"nope"}); err == nil {
 		t.Error("unknown project: want error")
+	}
+}
+
+func TestMigrateDeprecatedEntrypoint(t *testing.T) {
+	cfg := &Config{Projects: map[string]ProjectConfig{
+		"web": {Type: ProjectTypeNode, Path: "apps/web", Build: BuildConfig{Entrypoint: true}},
+		"api": {Type: ProjectTypeGo, Path: "apps/api", Versioned: true},
+		"lib": {Type: ProjectTypeGo, Path: "libs/lib"},
+	}}
+	if got := cfg.MigrateDeprecated(); !slices.Equal(got, []string{"web"}) {
+		t.Errorf("MigrateDeprecated = %v, want [web]", got)
+	}
+	for name, want := range map[string]bool{"web": true, "api": true, "lib": false} {
+		if pc := cfg.Projects[name]; pc.Versioned != want || pc.Build.Entrypoint {
+			t.Errorf("%s = %+v, want versioned %v", name, pc, want)
+		}
 	}
 }

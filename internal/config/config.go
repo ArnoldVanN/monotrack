@@ -32,6 +32,10 @@ func LoadConfig(configPath string) (*projects.Config, error) {
 		return nil, fmt.Errorf("failed to read %q: %w", configPath, err)
 	}
 
+	if names := cfg.MigrateDeprecated(); len(names) > 0 {
+		fmt.Fprintf(os.Stderr, "warning: build.entrypoint is deprecated, use `versioned: true` (set on %s)\n", strings.Join(names, ", "))
+	}
+
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("failed to validate %q: %w", configPath, err)
 	}

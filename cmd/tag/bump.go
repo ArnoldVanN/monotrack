@@ -44,7 +44,7 @@ var (
 
 	bumpCmd = &cobra.Command{
 		Use:   "bump",
-		Short: "Bumps specified entrypoint tags. Defaults to v0.0.1 if no tag exists",
+		Short: "Bumps the tags of versioned projects. Defaults to v0.0.1 if no tag exists",
 		RunE:  runBump,
 	}
 )

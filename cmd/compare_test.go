@@ -65,7 +65,7 @@ func (r *repo) commit(msg string) string {
 }
 
 // initProjects builds app state via the same builder the CLI uses, so tests
-// inherit its entrypoint-only filtering.
+// inherit its versioned-only filtering.
 func initProjects(t *testing.T, cfg map[string]projects.ProjectConfig) {
 	t.Helper()
 	c := &projects.Config{Projects: cfg}
@@ -76,12 +76,12 @@ func initProjects(t *testing.T, cfg map[string]projects.ProjectConfig) {
 	app.Init(c, p)
 }
 
-// Entrypoints are reported; libraries only propagate to their dependents.
+// Versioned projects are reported; libraries only propagate to their dependents.
 func goApp(path string, deps ...string) projects.ProjectConfig {
 	return projects.ProjectConfig{
 		Type:      projects.ProjectTypeGo,
 		Path:      path,
-		Build:     projects.BuildConfig{Entrypoint: true},
+		Versioned: true,
 		DependsOn: deps,
 	}
 }
@@ -90,7 +90,7 @@ func nodeApp(path string, deps ...string) projects.ProjectConfig {
 	return projects.ProjectConfig{
 		Type:      projects.ProjectTypeNode,
 		Path:      path,
-		Build:     projects.BuildConfig{Entrypoint: true},
+		Versioned: true,
 		DependsOn: deps,
 	}
 }
@@ -151,7 +151,7 @@ func TestCompareRange_IgnoresCommitsBeforeBase(t *testing.T) {
 	assertChanged(t, changed, "web")
 }
 
-// A changed library fans out to dependent entrypoints, transitively, but is
+// A changed library fans out to dependent versioned projects, transitively, but is
 // never itself reported.
 func TestCompareRange_FlagsDependentsOfChangedLibrary(t *testing.T) {
 	r := newRepo(t)
