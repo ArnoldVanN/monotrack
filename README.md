@@ -101,7 +101,7 @@ In `--no-pr` mode, `tag bump`:
 
 ##### Changelog format
 
-Each bumped project gets a `CHANGELOG.md` written/prepended at its project path. Entries are grouped into **Breaking Changes**, **Features**, **Bug Fixes**, **Performance**, and **Other**. A project that was bumped purely because a dependency changed gets an "Updated internal dependencies" entry listing each changed dependency and its current version.
+Each bumped project gets a `CHANGELOG.md` written/prepended at its project path. Entries are grouped into **Breaking Changes**, **Features**, **Bug Fixes**, **Performance**, and **Other**. Breaking changes come first, with the text of a `BREAKING CHANGE:` footer quoted under the entry (up to a blank line or the next trailer), in both the changelog and the release PR body. A project that was bumped purely because a dependency changed gets an "Updated internal dependencies" entry listing each changed dependency and its current version.
 
 ##### Other changelog flags:
 

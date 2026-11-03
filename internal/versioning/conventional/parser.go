@@ -29,7 +29,11 @@ type ParsedCommit struct {
 	Scope       string
 	Description string
 	Breaking    bool
-	Body        string
+	// BreakingNote is the text of a BREAKING CHANGE footer. Empty for a
+	// breaking "!" header without one: the description then describes the
+	// break.
+	BreakingNote string
+	Body         string
 }
 
 func (c ParsedCommit) ShortHash() string {
@@ -136,12 +140,9 @@ func Parse(hash, raw string) ParsedCommit {
 		pc.Breaking = true
 	}
 
-	for line := range strings.SplitSeq(pc.Body, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "BREAKING CHANGE:") || strings.HasPrefix(trimmed, "BREAKING-CHANGE:") {
-			pc.Breaking = true
-			break
-		}
+	if note, ok := breakingNote(pc.Body); ok {
+		pc.Breaking = true
+		pc.BreakingNote = note
 	}
 
 	if !pc.Type.isKnown() {
@@ -149,6 +150,41 @@ func Parse(hash, raw string) ParsedCommit {
 	}
 
 	return pc
+}
+
+// footerRe matches the start of a git trailer / conventional commit footer,
+// which ends the previous footer's value.
+var footerRe = regexp.MustCompile(`^(?:[A-Za-z][A-Za-z-]*: |[A-Za-z][A-Za-z-]* #|BREAKING CHANGE: )`)
+
+// breakingNote finds a BREAKING CHANGE (or BREAKING-CHANGE) footer and
+// returns its text: the rest of its line plus wrapped lines after it, up to a
+// blank line or the next footer (e.g. a Co-authored-by trailer). Wrapped
+// lines are joined with spaces.
+func breakingNote(body string) (string, bool) {
+	lines := strings.Split(body, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		rest, ok := strings.CutPrefix(trimmed, "BREAKING CHANGE:")
+		if !ok {
+			rest, ok = strings.CutPrefix(trimmed, "BREAKING-CHANGE:")
+		}
+		if !ok {
+			continue
+		}
+		var parts []string
+		if r := strings.TrimSpace(rest); r != "" {
+			parts = append(parts, r)
+		}
+		for _, next := range lines[i+1:] {
+			t := strings.TrimSpace(next)
+			if t == "" || footerRe.MatchString(t) {
+				break
+			}
+			parts = append(parts, t)
+		}
+		return strings.Join(parts, " "), true
+	}
+	return "", false
 }
 
 func (t CommitType) isKnown() bool {

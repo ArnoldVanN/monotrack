@@ -273,3 +273,48 @@ func TestSections_CombinedKeys(t *testing.T) {
 		t.Errorf("sectionKey = %q, %v; want %q", key, ok, s.Key)
 	}
 }
+
+func TestRender_BreakingNote(t *testing.T) {
+	e := Entry{
+		NewVersion: "v0.1.0",
+		Date:       time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC),
+		Commits: []conventional.ParsedCommit{
+			{Hash: "1111111", Type: conventional.TypeFix, Scope: "server", Description: "harden secrets", Breaking: true, BreakingNote: "short secrets stop startup."},
+			{Hash: "2222222", Type: conventional.TypeFeat, Description: "drop v1", Breaking: true},
+		},
+	}
+	out := Render(e)
+	want := "### ⚠ Breaking Changes\n\n" +
+		"- **server:** harden secrets (1111111)\n" +
+		"  > short secrets stop startup.\n" +
+		"- drop v1 (2222222)\n"
+	if !strings.Contains(out, want) {
+		t.Errorf("breaking section = %q, want it to contain %q", out, want)
+	}
+}
+
+func TestPRBody_BreakingNoteFirst(t *testing.T) {
+	note := "short secrets stop startup."
+	breaking := conventional.ParsedCommit{Hash: "1111111", Type: conventional.TypeFix, Description: "harden secrets", Breaking: true, BreakingNote: note}
+	feat := conventional.ParsedCommit{Hash: "2222222", Type: conventional.TypeFeat, Description: "add sessions"}
+	date := time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC)
+
+	single := PRBody([]Entry{{
+		Project: projects.NewGoProject("api", ".", true, projects.ProjectTypeGo), NewVersion: "v0.1.0", Date: date,
+		Commits: []conventional.ParsedCommit{feat, breaking},
+	}})
+	multi := PRBody([]Entry{
+		{Project: projects.NewGoProject("api", "api", true, projects.ProjectTypeGo), NewVersion: "v0.1.0", Date: date, Commits: []conventional.ParsedCommit{breaking}},
+		{Project: projects.NewGoProject("web", "web", true, projects.ProjectTypeGo), NewVersion: "v0.2.0", Date: date, Commits: []conventional.ParsedCommit{feat}},
+	})
+	for name, body := range map[string]string{"single": single, "multi": multi} {
+		noteIdx := strings.Index(body, "  > "+note)
+		if noteIdx < 0 {
+			t.Errorf("%s: body has no breaking note:\n%s", name, body)
+			continue
+		}
+		if featIdx := strings.Index(body, "add sessions"); featIdx < noteIdx {
+			t.Errorf("%s: breaking note should come before other changes:\n%s", name, body)
+		}
+	}
+}

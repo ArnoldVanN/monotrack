@@ -81,7 +81,7 @@ func Render(e Entry) string {
 	if len(breaking) > 0 {
 		b.WriteString("### ⚠ Breaking Changes\n\n")
 		for _, c := range breaking {
-			b.WriteString(renderLine(c))
+			b.WriteString(renderBreakingLine(c))
 		}
 		b.WriteString("\n")
 	}
@@ -169,6 +169,15 @@ func renderLine(c conventional.ParsedCommit) string {
 		return fmt.Sprintf("- **%s:** %s (%s)\n", c.Scope, desc, c.ShortHash())
 	}
 	return fmt.Sprintf("- %s (%s)\n", desc, c.ShortHash())
+}
+
+// renderBreakingLine is renderLine with the BREAKING CHANGE footer's text
+// quoted under it, inside the same list item.
+func renderBreakingLine(c conventional.ParsedCommit) string {
+	if c.BreakingNote == "" {
+		return renderLine(c)
+	}
+	return renderLine(c) + "  > " + c.BreakingNote + "\n"
 }
 
 // PerProject writes/prepends a changelog block to each project's CHANGELOG.md
@@ -443,7 +452,7 @@ func PRBody(entries []Entry) string {
 		for _, pb := range allBreaking {
 			fmt.Fprintf(&b, "### %s\n\n", pb.name)
 			for _, c := range pb.commits {
-				b.WriteString(renderLine(c))
+				b.WriteString(renderBreakingLine(c))
 			}
 			b.WriteString("\n")
 		}

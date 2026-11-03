@@ -113,3 +113,33 @@ func TestShortHash(t *testing.T) {
 		t.Errorf("short hash for short input should be unchanged")
 	}
 }
+
+func TestParse_BreakingNote(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{"one line", "feat: thing\n\nBREAKING CHANGE: removed flag", "removed flag"},
+		{"hyphen token", "fix: x\n\nBREAKING-CHANGE: y", "y"},
+		{
+			"wrapped, ends at next trailer",
+			"fix: harden\n\nBody.\n\nBREAKING CHANGE: short secrets stop\nstartup.\nCo-Authored-By: Someone <a@b.c>",
+			"short secrets stop startup.",
+		},
+		{"ends at blank line", "fix: x\n\nBREAKING CHANGE: first\n\nnot part of it", "first"},
+		{"text on the next line", "fix: x\n\nBREAKING CHANGE:\nexplained here", "explained here"},
+		{"bang header has no note", "feat(api)!: drop v1", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pc := Parse("abc1234567", tt.raw)
+			if !pc.Breaking {
+				t.Fatal("breaking = false, want true")
+			}
+			if pc.BreakingNote != tt.want {
+				t.Errorf("note = %q, want %q", pc.BreakingNote, tt.want)
+			}
+		})
+	}
+}
