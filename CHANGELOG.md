@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.19](https://github.com/ArnoldVanN/monotrack/compare/v0.9.18...v0.9.19) (2026-11-03)
+
+
+### Features
+
+* show BREAKING CHANGE footer text in changelogs and release PRs ([a57b8f2](https://github.com/ArnoldVanN/monotrack/commit/a57b8f2a9ea2360bec81726b66076efa3c120fcb))
+
 ## [0.9.18](https://github.com/ArnoldVanN/monotrack/compare/v0.9.17...v0.9.18) (2026-10-29)
 
 
