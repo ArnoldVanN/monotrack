@@ -43,11 +43,17 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
+        INPUT_BASE: ${{ inputs.base }}
+        INPUT_HEAD: ${{ inputs.head }}
+        INPUT_COMMAND: ${{ inputs.command }}
+        INPUT_ARGS: ${{ inputs.args }}
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_VERSION: ${{ inputs.version }}
       run: |
         set -euo pipefail
 
-        BASE=${{ inputs.base }}
-        HEAD=${{ inputs.head }}
+        BASE="$INPUT_BASE"
+        HEAD="$INPUT_HEAD"
 
         if [ -z "$BASE" ] || [ -z "$HEAD" ]; then
           case "$GITHUB_EVENT_NAME" in
@@ -74,9 +80,9 @@ runs:
           echo "::warning::Unable to determine base SHA."
         fi
 
-        read -r -a CLI_ARGS <<< "${{ inputs.command }} ${{ inputs.args }}"
+        read -r -a CLI_ARGS <<< "$INPUT_COMMAND $INPUT_ARGS"
 
-        VERSION="${{ inputs.version }}"
+        VERSION="$INPUT_VERSION"
         if [ -z "$VERSION" ]; then
           # GITHUB_ACTION_REF is unreliable for composite actions — fall back to parsing
           # the trailing ref segment from GITHUB_ACTION_PATH (e.g. /…/_actions/owner/repo/<ref>).
@@ -137,7 +143,7 @@ runs:
 
         echo "CLI Arguments: ${CLI_ARGS[*]}"
         echo "Using Monotrack version: $VERSION"
-        echo "Using config file: ${{ inputs.config }}"
+        echo "Using config file: $INPUT_CONFIG"
 
         # Mirror the docker entrypoint: trust the workspace and set a default git identity
         # so monotrack can create commits/tags. Use --add so we don't clobber prior config.
@@ -154,7 +160,7 @@ runs:
             "${CLI_ARGS[@]}" \
             --base "$BASE" \
             --head "$HEAD" \
-            --config "${{ inputs.config }}")
+            --config "$INPUT_CONFIG")
         EXIT_CODE=$?
         set -e
 
@@ -167,6 +173,9 @@ runs:
         echo "Monotrack result: "
         echo "$OUTPUT"
 
-        echo "output<<EOF" >> "$GITHUB_OUTPUT"
-        echo "$OUTPUT" >> "$GITHUB_OUTPUT"
-        echo "EOF" >> "$GITHUB_OUTPUT"
+        DELIM="EOF_$(openssl rand -hex 16)"
+        {
+          echo "output<<$DELIM"
+          echo "$OUTPUT"
+          echo "$DELIM"
+        } >> "$GITHUB_OUTPUT"
