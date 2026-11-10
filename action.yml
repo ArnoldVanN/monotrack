@@ -19,7 +19,7 @@ inputs:
     description: "Name of the configuration file"
     required: false
   version:
-    description: "CLI version (release tag, e.g. `v0.8.2`). When unset, defaults to the latest release matching the action's major (e.g. `v0` when called as `@v0` or `@v0.8.3`). Errors if the action ref isn't semver-shaped — set explicitly when pinning to a branch or SHA."
+    description: "CLI version (release tag, e.g. `v0.8.2`). When unset, defaults to the latest release matching the action's major (e.g. `v0` when called as `@v0` or `@v0.8.3`). When pinned to a commit SHA, uses the release tag on that commit. Set explicitly when pinning to a branch or an untagged commit."
     default: ""
     required: false
   token:
@@ -102,6 +102,15 @@ runs:
               | jq -r "[.[] | select(.draft==false) | select(.prerelease==false) | .tag_name | select(startswith(\"v${MAJOR}.\"))] | .[0] // empty")"
             if [ -z "$VERSION" ]; then
               echo "::error::Could not find a published monotrack release matching v${MAJOR}.* on GitHub."
+              exit 1
+            fi
+          elif [[ "$REF" =~ ^[0-9a-f]{40}$ ]]; then
+            # Pinned to a commit, e.g. by Renovate — use the release tag on that commit.
+            VERSION="$(git ls-remote --tags https://github.com/arnoldvann/monotrack.git \
+              | awk -v sha="$REF" '$1 == sha { sub("^refs/tags/", "", $2); sub("\\^\\{\\}$", "", $2); print $2 }' \
+              | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)"
+            if [ -z "$VERSION" ]; then
+              echo "::error::No monotrack release tag points at commit $REF. Pin the action to a release commit, or set the \`version\` input explicitly."
               exit 1
             fi
           else
