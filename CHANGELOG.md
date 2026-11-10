@@ -1,5 +1,20 @@
 # Changelog
 
+## [monotrack v0.10.1] - 2026-11-10
+
+### Features
+
+- resolve the CLI version when the action is pinned to a commit (e8e8bcc)
+
+### Bug Fixes
+
+- ignore floating major and minor tags when finding the latest release (7dccb62)
+- pass action inputs through env vars to prevent script injection (2526cce)
+
+### Other
+
+- release monotrack with monotrack (2e47ab5)
+
 ## [0.10.0](https://github.com/ArnoldVanN/monotrack/compare/v0.9.19...v0.10.0) (2026-11-10)
 
 

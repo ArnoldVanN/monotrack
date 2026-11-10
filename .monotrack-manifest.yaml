@@ -1,0 +1,5 @@
+pending:
+    - project: monotrack
+      tag: v0.10.1
+      oldVersion: v0.10.0
+      newVersion: v0.10.1
