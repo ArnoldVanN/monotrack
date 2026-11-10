@@ -95,7 +95,7 @@ In `--no-pr` mode, `tag bump`:
 `--dry` never enters the PR or tag-phase routing — it computes proposed bumps and prints them, period. Safe to use in matrix-discovery jobs regardless of which mode the non-dry job uses.
 
 > [!IMPORTANT]
-> Monotrack ignores commits whose subject starts with `chore(release)` when deciding which projects need a bump. This prevents the auto-generated release commit from triggering an empty re-release on the next run. Avoid using that prefix for unrelated chore commits if you want them to count toward a bump.
+> Monotrack ignores commits whose subject starts with `chore(release)` when deciding which projects need a bump. This prevents the auto-generated release commit from triggering an empty re-release on the next run. Avoid using that prefix for unrelated commits if you want them to count toward a bump.
 
 ## Changelogs
 
@@ -232,6 +232,20 @@ projects:
     path: apps/api
     preMajor: true
 ```
+
+### Release types
+
+A changed project is only released when it, or a project it depends on, has a commit whose type is in `releaseTypes`. Breaking changes (`!` or a `BREAKING CHANGE` footer) always release. The default is `feat`, `fix`, `perf` and `revert`, so a run of `chore`, `ci`, `docs`, `test`, `refactor`, `style` or `build` commits waits for the next releasable commit and then shows up in its changelog. Use `"*"` to release on any commit, conventional or not.
+
+```yaml
+projects:
+  api:
+    type: go
+    path: apps/api
+    releaseTypes: [feat, fix, perf, revert, build]
+```
+
+`tag bump --component <major|minor|patch>` releases every changed project regardless of type.
 
 ### Custom changelog path
 

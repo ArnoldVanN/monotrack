@@ -187,6 +187,12 @@ func breakingNote(body string) (string, bool) {
 	return "", false
 }
 
+// IsKnownType reports whether s is a conventional commit type monotrack
+// recognizes.
+func IsKnownType(s string) bool {
+	return CommitType(s).isKnown()
+}
+
 func (t CommitType) isKnown() bool {
 	switch t {
 	case TypeFeat, TypeFix, TypePerf, TypeRefactor, TypeChore,

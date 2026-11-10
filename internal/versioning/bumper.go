@@ -77,7 +77,7 @@ func (b *VersionBumper) BumpProjects(
 		return nil, err
 	}
 
-	changed, err := detectChanges(p, tags, rawTags, preRelease, head)
+	changed, err := detectChanges(p, tags, rawTags, preRelease, kindOverride != nil, head)
 	if err != nil {
 		return nil, err
 	}
@@ -131,11 +131,14 @@ func resolveTagState(cfg *projects.Config, p map[string]projects.Project, head s
 }
 
 // detectChanges determines which projects need a version bump and why.
+// Unless force is set, a changed project is only bumped when it, or a
+// dependency, has a commit of one of its release types.
 func detectChanges(
 	p map[string]projects.Project,
 	tags map[string]tagState,
 	rawTags map[projects.Project][]string,
 	preRelease bool,
+	force bool,
 	head string,
 ) (map[string]changedProject, error) {
 	cfg := app.State.Config
@@ -163,6 +166,15 @@ func detectChanges(
 		}
 		if !all[name] {
 			continue
+		}
+		if !force {
+			ok, err := hasReleasableChange(cfg, name, ts.reachBase, head)
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				continue
+			}
 		}
 		cp := changedProject{version: bumpFrom, base: ts.reachBase, reason: ReasonCommits}
 		if !direct[name] {
@@ -438,6 +450,36 @@ func commitsForProject(base, head string, proj projects.Project) ([]git.RawCommi
 		filtered = append(filtered, c)
 	}
 	return filtered, nil
+}
+
+// hasReleasableChange reports whether a commit between base and head that
+// releases project name touched it or one of its dependencies.
+func hasReleasableChange(cfg *projects.Config, name, base, head string) (bool, error) {
+	pc := cfg.Projects[name]
+	if pc.ReleasesAll() {
+		return true, nil
+	}
+
+	raw, err := git.LogBetween(base, head, nil)
+	if err != nil {
+		return false, err
+	}
+
+	var files []string
+	for _, c := range raw {
+		if isReleaseCommit(c.Message) {
+			continue
+		}
+		if slices.ContainsFunc(conventional.ParseAll(c.Hash, c.Message), pc.Releases) {
+			files = append(files, c.Files...)
+		}
+	}
+	if len(files) == 0 {
+		return false, nil
+	}
+
+	_, all := ListProjectsChangedInDiff(files)
+	return all[name], nil
 }
 
 // isReleaseCommit returns true for commits monotrack itself authored when

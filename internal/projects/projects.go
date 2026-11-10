@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/arnoldvann/monotrack/internal/versioning/conventional"
 	"github.com/bmatcuk/doublestar/v4"
 )
 
@@ -106,6 +107,34 @@ type ProjectConfig struct {
 	Build       BuildConfig `mapstructure:"build"`
 	Ignore      []string    `mapstructure:"ignore"`
 	Granularity string      `mapstructure:"granularity"`
+	// ReleaseTypes lists the conventional commit types that trigger a
+	// release. Breaking changes always do. "*" releases on any commit,
+	// conventional or not. Defaults to DefaultReleaseTypes.
+	ReleaseTypes []string `mapstructure:"releaseTypes"`
+}
+
+// DefaultReleaseTypes are the commit types that release a project when it
+// doesn't set releaseTypes.
+var DefaultReleaseTypes = []string{"feat", "fix", "perf", "revert"}
+
+func (pc ProjectConfig) releaseTypes() []string {
+	if pc.ReleaseTypes == nil {
+		return DefaultReleaseTypes
+	}
+	return pc.ReleaseTypes
+}
+
+// ReleasesAll reports whether every commit releases the project.
+func (pc ProjectConfig) ReleasesAll() bool {
+	return slices.Contains(pc.releaseTypes(), "*")
+}
+
+// Releases reports whether commit c triggers a release of the project.
+func (pc ProjectConfig) Releases(c conventional.ParsedCommit) bool {
+	if c.Breaking || pc.ReleasesAll() {
+		return true
+	}
+	return c.Type != conventional.TypeUnknown && slices.Contains(pc.releaseTypes(), string(c.Type))
 }
 
 const (
@@ -258,6 +287,12 @@ func (c *Config) Validate() error {
 			}
 		default:
 			return fmt.Errorf("project %q has invalid granularity %q (must be one of: project, package)", name, pc.Granularity)
+		}
+
+		for _, t := range pc.ReleaseTypes {
+			if t != "*" && !conventional.IsKnownType(t) {
+				return fmt.Errorf("project %q: unknown release type %q", name, t)
+			}
 		}
 
 		for _, dep := range pc.DependsOn {
