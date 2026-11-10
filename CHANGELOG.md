@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.10.0](https://github.com/ArnoldVanN/monotrack/compare/v0.9.19...v0.10.0) (2026-11-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* only release on feat, fix, perf and revert commits by default
+
+### Features
+
+* only release on feat, fix, perf and revert commits by default ([36b3e44](https://github.com/ArnoldVanN/monotrack/commit/36b3e44e9ca219453bce6ebde19925816bd1292e))
+
 ## [0.9.19](https://github.com/ArnoldVanN/monotrack/compare/v0.9.18...v0.9.19) (2026-11-03)
 
 
