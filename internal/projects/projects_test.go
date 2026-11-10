@@ -68,3 +68,31 @@ func TestMigrateDeprecatedEntrypoint(t *testing.T) {
 		}
 	}
 }
+
+func TestMatchTagSkipsFloatingTags(t *testing.T) {
+	single := &Config{Projects: map[string]ProjectConfig{"app": {}}}
+	multi := &Config{Projects: map[string]ProjectConfig{"app": {}, "lib": {}}}
+
+	tests := []struct {
+		cfg    *Config
+		tag    string
+		want   string
+		wantOk bool
+	}{
+		{single, "v1.2.3", "v1.2.3", true},
+		{single, "v1.2.3-rc.1", "v1.2.3-rc.1", true},
+		{single, "v1.2.3+build.5", "v1.2.3+build.5", true},
+		{single, "v1", "", false},
+		{single, "v1.2", "", false},
+		{single, "latest", "", false},
+		{multi, "app/v0.4.0", "v0.4.0", true},
+		{multi, "app/v0", "", false},
+		{multi, "app/v0.4", "", false},
+	}
+	for _, tt := range tests {
+		got, ok := tt.cfg.MatchTag(tt.tag, "app")
+		if got != tt.want || ok != tt.wantOk {
+			t.Errorf("MatchTag(%q) = %q, %v; want %q, %v", tt.tag, got, ok, tt.want, tt.wantOk)
+		}
+	}
+}

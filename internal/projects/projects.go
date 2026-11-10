@@ -9,6 +9,7 @@ import (
 
 	"github.com/arnoldvann/monotrack/internal/versioning/conventional"
 	"github.com/bmatcuk/doublestar/v4"
+	"golang.org/x/mod/semver"
 )
 
 type Config struct {
@@ -225,7 +226,22 @@ func (c *Config) MatchTag(tag, projectName string) (version string, ok bool) {
 	if vp != "" && !strings.HasPrefix(rest, vp) {
 		return "", false
 	}
-	return "v" + strings.TrimPrefix(rest, vp), true
+	version = "v" + strings.TrimPrefix(rest, vp)
+	if !isFullSemver(version) {
+		return "", false
+	}
+	return version, true
+}
+
+// isFullSemver reports whether v is a semver version with all three
+// components, so floating tags like v1 or v1.2 aren't taken for releases.
+func isFullSemver(v string) bool {
+	if !semver.IsValid(v) {
+		return false
+	}
+	core, _, _ := strings.Cut(v, "-")
+	core, _, _ = strings.Cut(core, "+")
+	return strings.Count(core, ".") == 2
 }
 
 func (c *Config) Validate() error {
