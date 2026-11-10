@@ -1,0 +1,12 @@
+projects:
+  monotrack:
+    type: go
+    path: .
+    versioned: true
+    preMajor: true
+    ignore:
+      - ".github/**"
+      - "**/*.md"
+      - "**/*_test.go"
+      - ".goreleaser.yaml"
+      - ".gitignore"

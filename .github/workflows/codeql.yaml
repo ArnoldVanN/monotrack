@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   analyze:
-    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+    if: github.head_ref != 'monotrack/release-main'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
