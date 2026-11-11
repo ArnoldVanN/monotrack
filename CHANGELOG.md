@@ -1,5 +1,16 @@
 # Changelog
 
+## [monotrack v0.10.2] - 2026-11-11
+
+### Bug Fixes
+
+- **deps:** update module golang.org/x/mod to v0.40.0 [security] (#80) (dc4e571)
+
+### Other
+
+- **deps:** update module golang.org/x/sys to v0.44.0 [security] (#78) (f0a9f06)
+- **deps:** update module golang.org/x/text to v0.41.0 [security] (#79) (3c34a66)
+
 ## [monotrack v0.10.1] - 2026-11-10
 
 ### Features
