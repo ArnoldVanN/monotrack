@@ -1,5 +1,11 @@
 # Changelog
 
+## [monotrack v0.10.3] - 2026-11-20
+
+### Bug Fixes
+
+- **deps:** update all non-major dependencies (#84) (559bc28)
+
 ## [monotrack v0.10.2] - 2026-11-11
 
 ### Bug Fixes
