@@ -1,5 +1,11 @@
 # Changelog
 
+## [monotrack v0.10.4] - 2026-11-23
+
+### Bug Fixes
+
+- **deps:** update module github.com/bmatcuk/doublestar/v4 to v4.10.7 (#87) (d1b9565)
+
 ## [monotrack v0.10.3] - 2026-11-20
 
 ### Bug Fixes
