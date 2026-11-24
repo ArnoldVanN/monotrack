@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.10.5](https://github.com/ArnoldVanN/monotrack/compare/v0.10.4...v0.10.5) - 2026-11-24
+
+### Features
+
+- render changelog links for github, gitlab and forgejo ([d28e254](https://github.com/ArnoldVanN/monotrack/commit/d28e254157747ad310ebc78c5188d31055d67faf))
+
 ## [monotrack v0.10.4] - 2026-11-23
 
 ### Bug Fixes
