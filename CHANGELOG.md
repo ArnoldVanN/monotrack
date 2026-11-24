@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.10.6](https://github.com/ArnoldVanN/monotrack/compare/v0.10.5...v0.10.6) - 2026-11-24
+
+### Features
+
+- expose released, versions, tags and pr-url action outputs ([defec74](https://github.com/ArnoldVanN/monotrack/commit/defec743c2cf6984bcb40e219369b13d07de544f))
+
+### Bug Fixes
+
+- don't print usage on runtime errors ([bf04f2a](https://github.com/ArnoldVanN/monotrack/commit/bf04f2a4f87091258a463c6a7ee0aaf6566e4406))
+
 ## [v0.10.5](https://github.com/ArnoldVanN/monotrack/compare/v0.10.4...v0.10.5) - 2026-11-24
 
 ### Features
