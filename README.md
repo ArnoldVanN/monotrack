@@ -103,6 +103,8 @@ In `--no-pr` mode, `tag bump`:
 
 Each bumped project gets a `CHANGELOG.md` written/prepended at its project path. Entries are grouped into **Breaking Changes**, **Features**, **Bug Fixes**, **Performance**, and **Other**. Breaking changes come first, with the text of a `BREAKING CHANGE:` footer quoted under the entry (up to a blank line or the next trailer), in both the changelog and the release PR body. A project that was bumped purely because a dependency changed gets an "Updated internal dependencies" entry listing each changed dependency and its current version.
 
+When the repo is on GitHub, GitLab or Forgejo, each release heading links to the diff from the previous tag, each entry links to its commit, and on GitHub and Forgejo `(#123)` references link to the pull request. github.com, gitlab.com and codeberg.org are detected from `origin`; for a self-hosted forge, see [Forge links](#forge-links). Headings in a combined changelog for several projects carry the project name, e.g. `## [api v1.2.0](…) - 2026-11-23`; a single project's heading is just the version.
+
 ##### Other changelog flags:
 
 ```bash
@@ -257,6 +259,18 @@ changelog:
 ```
 
 In monorepo per-project mode (the default), each changelog still lives at `<project-path>/CHANGELOG.md` and this option is ignored.
+
+### Forge links
+
+Changelog links need to know the forge type, which is detected only for github.com, gitlab.com and codeberg.org. For a self-hosted forge, such as Forgejo, set it:
+
+```yaml
+forge:
+  type: forgejo # github, gitlab or forgejo
+  url: https://git.example.com/owner/repo # optional
+```
+
+The repo's web URL is derived from `origin`, e.g. `git@git.example.com:owner/repo.git` becomes `https://git.example.com/owner/repo`. Set `url` when that doesn't lead to it, such as SSH on another port or host.
 
 ### Custom tag scheme
 

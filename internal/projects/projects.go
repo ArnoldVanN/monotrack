@@ -21,7 +21,24 @@ type Config struct {
 	Tags      TagsConfig               `mapstructure:"tags"`
 	Changelog ChangelogConfig          `mapstructure:"changelog"`
 	Discovery DiscoveryConfig          `mapstructure:"discovery"`
+	Forge     ForgeConfig              `mapstructure:"forge"`
 }
+
+// ForgeConfig names the forge hosting the repo, for the links in changelogs.
+// Both fields are optional: by default the type is detected from origin's
+// host (github.com, gitlab.com, codeberg.org), and the URL is derived from
+// origin. Set them for a self-hosted forge.
+type ForgeConfig struct {
+	// Type is "github", "gitlab" or "forgejo".
+	Type string `mapstructure:"type"`
+	// URL is the repo's web URL, e.g. https://git.example.com/owner/repo,
+	// for when origin's address doesn't lead to it, such as SSH on a
+	// different host or port.
+	URL string `mapstructure:"url"`
+}
+
+// ForgeTypes lists the valid ForgeConfig.Type values.
+var ForgeTypes = []string{"github", "gitlab", "forgejo"}
 
 // DiscoveryConfig tunes `projects check` and `projects sync`.
 type DiscoveryConfig struct {
@@ -248,6 +265,13 @@ func (c *Config) Validate() error {
 	c.Name = strings.TrimSpace(c.Name)
 	if strings.ContainsAny(c.Name, "[]\n") {
 		return fmt.Errorf("name %q may not contain brackets or newlines", c.Name)
+	}
+
+	if c.Forge.Type != "" && !slices.Contains(ForgeTypes, c.Forge.Type) {
+		return fmt.Errorf("forge: unknown type %q (must be one of: %s)", c.Forge.Type, strings.Join(ForgeTypes, ", "))
+	}
+	if c.Forge.URL != "" && !strings.HasPrefix(c.Forge.URL, "https://") && !strings.HasPrefix(c.Forge.URL, "http://") {
+		return fmt.Errorf("forge: url %q must start with https:// or http://", c.Forge.URL)
 	}
 
 	for _, pattern := range c.Discovery.Exclude {

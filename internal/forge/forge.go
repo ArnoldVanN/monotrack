@@ -39,7 +39,7 @@ func Detect() (Forge, error) {
 	if err != nil {
 		return nil, fmt.Errorf("detecting forge: %w", err)
 	}
-	host, owner, repo := parseRemote(url)
+	host, owner, repo := ParseRemote(url)
 	if host == "github.com" && hasCLI("gh") {
 		return &githubCLI{owner: owner, repo: repo}, nil
 	}
@@ -49,7 +49,9 @@ func Detect() (Forge, error) {
 // Matches https://host/o/r(.git), git@host:o/r(.git), ssh://git@host/o/r(.git).
 var remoteRe = regexp.MustCompile(`(?:https?://|ssh://[^@]+@|[^@]+@)([^/:]+)[:/]([^/]+)/([^/]+?)(?:\.git)?/?$`)
 
-func parseRemote(url string) (host, owner, repo string) {
+// ParseRemote splits a git remote URL into its host, owner and repository.
+// All three are empty when the URL isn't recognized.
+func ParseRemote(url string) (host, owner, repo string) {
 	m := remoteRe.FindStringSubmatch(url)
 	if m == nil {
 		return "", "", ""

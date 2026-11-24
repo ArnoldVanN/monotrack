@@ -26,7 +26,7 @@ func TestRender_SectionsAndOrdering(t *testing.T) {
 
 	out := Render(e)
 
-	if !strings.Contains(out, "## [v1.2.0] - 2026-05-09") {
+	if !strings.Contains(out, "## v1.2.0 - 2026-05-09") {
 		t.Errorf("missing version header: %s", out)
 	}
 	if !strings.Contains(out, "Breaking Changes") {
@@ -266,11 +266,81 @@ func TestSections_CombinedKeys(t *testing.T) {
 		Reason:     versioning.ReasonInitial,
 	}
 	s := Sections([]Entry{e}, true)[0]
-	if s.Key != "web v1.0.0" || !strings.HasPrefix(s.Body, "## [web v1.0.0] - 2026-05-09\n") {
+	if s.Key != "web v1.0.0" || !strings.HasPrefix(s.Body, "## web v1.0.0 - 2026-05-09\n") {
 		t.Errorf("combined section = %+v", s)
 	}
-	if key, ok := sectionKey(s.Body); !ok || key != s.Key {
-		t.Errorf("sectionKey = %q, %v; want %q", key, ok, s.Key)
+	if key, _, ok := parseHeading(s.Body); !ok || key != s.Key {
+		t.Errorf("parseHeading = %q, %v; want %q", key, ok, s.Key)
+	}
+}
+
+func TestParseHeading(t *testing.T) {
+	day := time.Date(2026, 11, 10, 0, 0, 0, 0, time.UTC)
+	tests := []struct {
+		heading string
+		key     string
+		hasDate bool
+	}{
+		{"## v0.10.4 - 2026-11-10", "v0.10.4", true},
+		{"## [v0.10.4](https://github.com/o/r/compare/v0.10.3...v0.10.4) - 2026-11-10", "v0.10.4", true},
+		{"## [api v1.0.0](https://github.com/o/r/compare/api/v0.9.0...api/v1.0.0) - 2026-11-10", "api v1.0.0", true},
+		{"## api v1.0.0 - 2026-11-10", "api v1.0.0", true},
+		{"## [monotrack v0.10.1] - 2026-11-10", "monotrack v0.10.1", true},
+		{"## [0.10.0](https://github.com/o/r/compare/v0.9.19...v0.10.0) (2026-11-10)", "0.10.0", true},
+		{"## [v1.0.0]", "v1.0.0", false},
+		{"## Unreleased", "", false},
+	}
+	for _, tt := range tests {
+		key, date, hasDate := parseHeading(tt.heading + "\n\n- x\n")
+		if key != tt.key || hasDate != tt.hasDate || (hasDate && !date.Equal(day)) {
+			t.Errorf("parseHeading(%q) = %q, %v, %v; want %q, %v", tt.heading, key, date, hasDate, tt.key, tt.hasDate)
+		}
+	}
+}
+
+func TestRender_Links(t *testing.T) {
+	e := Entry{
+		NewVersion: "v0.10.4",
+		Date:       time.Date(2026, 11, 23, 0, 0, 0, 0, time.UTC),
+		Tag:        "v0.10.4",
+		PrevTag:    "v0.10.3",
+		Links:      NewLinks(projects.ForgeConfig{}, "git@github.com:ArnoldVanN/monotrack.git"),
+		Commits: []conventional.ParsedCommit{
+			{Hash: "d1b9565aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Type: conventional.TypeFix, Scope: "deps", Description: "update doublestar to v4.10.7 (#87)"},
+		},
+	}
+	out := Render(e)
+	for _, want := range []string{
+		"## [v0.10.4](https://github.com/ArnoldVanN/monotrack/compare/v0.10.3...v0.10.4) - 2026-11-23\n",
+		"- **deps:** update doublestar to v4.10.7 ([#87](https://github.com/ArnoldVanN/monotrack/pull/87)) " +
+			"([d1b9565](https://github.com/ArnoldVanN/monotrack/commit/d1b9565aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa))\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("Render = %s\nwant it to contain %q", out, want)
+		}
+	}
+
+	e.PrevTag = ""
+	e.Links = NewLinks(projects.ForgeConfig{}, "https://gitlab.com/o/r.git")
+	out = Render(e)
+	if !strings.HasPrefix(out, "## v0.10.4 - 2026-11-23\n") || !strings.Contains(out, "(#87) ([d1b9565](https://gitlab.com/o/r/-/commit/") {
+		t.Errorf("gitlab Render without previous tag = %s", out)
+	}
+}
+
+func TestSplice_ReplacesLegacyHeadings(t *testing.T) {
+	existing := "# Changelog\n\n" +
+		"## [monotrack v0.10.1] - 2026-11-10\n\n- old\n\n" +
+		"## [0.10.0](https://github.com/o/r/compare/v0.9.19...v0.10.0) (2026-11-09)\n\n- release-please\n"
+	sections := []Section{
+		{Key: "v0.10.1", Body: "## v0.10.1 - 2026-11-10\n\n- new\n\n", Date: time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC)},
+		{Key: "v0.10.0", Body: "## v0.10.0 - 2026-11-09\n\n- regenerated\n\n", Date: time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC)},
+	}
+	want := "# Changelog\n\n" +
+		"## v0.10.1 - 2026-11-10\n\n- new\n\n" +
+		"## v0.10.0 - 2026-11-09\n\n- regenerated\n"
+	if got := Splice(existing, sections, func(string) bool { return true }); got != want {
+		t.Errorf("Splice:\n%s\nwant:\n%s", got, want)
 	}
 }
 
@@ -316,5 +386,43 @@ func TestPRBody_BreakingNoteFirst(t *testing.T) {
 		if featIdx := strings.Index(body, "add sessions"); featIdx < noteIdx {
 			t.Errorf("%s: breaking note should come before other changes:\n%s", name, body)
 		}
+	}
+}
+
+func TestNewLinks_Forgejo(t *testing.T) {
+	e := Entry{
+		NewVersion: "v1.1.0",
+		Date:       time.Date(2026, 11, 24, 0, 0, 0, 0, time.UTC),
+		Tag:        "v1.1.0",
+		PrevTag:    "v1.0.0",
+		Commits: []conventional.ParsedCommit{
+			{Hash: "abcdef0123", Type: conventional.TypeFeat, Description: "add thing (#12)"},
+		},
+	}
+	tests := []struct {
+		name   string
+		cfg    projects.ForgeConfig
+		remote string
+		base   string
+	}{
+		{"codeberg detected", projects.ForgeConfig{}, "git@codeberg.org:o/r.git", "https://codeberg.org/o/r"},
+		{"self-hosted by type", projects.ForgeConfig{Type: "forgejo"}, "https://git.example.com/o/r.git", "https://git.example.com/o/r"},
+		{"explicit url", projects.ForgeConfig{Type: "forgejo", URL: "https://git.example.com/o/r/"}, "ssh://git@git.example.com:2222/o/r.git", "https://git.example.com/o/r"},
+	}
+	for _, tt := range tests {
+		e.Links = NewLinks(tt.cfg, tt.remote)
+		out := Render(e)
+		for _, want := range []string{
+			"## [v1.1.0](" + tt.base + "/compare/v1.0.0...v1.1.0) - 2026-11-24\n",
+			"- add thing ([#12](" + tt.base + "/pulls/12)) ([abcdef0](" + tt.base + "/commit/abcdef0123))\n",
+		} {
+			if !strings.Contains(out, want) {
+				t.Errorf("%s: Render = %s\nwant it to contain %q", tt.name, out, want)
+			}
+		}
+	}
+
+	if l := NewLinks(projects.ForgeConfig{}, "https://git.example.com/o/r.git"); l != (Links{}) {
+		t.Errorf("unknown host without a type = %+v, want no links", l)
 	}
 }

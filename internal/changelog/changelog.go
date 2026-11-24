@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -28,6 +29,12 @@ type Entry struct {
 	Reason       versioning.BumpReason
 	Commits      []conventional.ParsedCommit
 	Dependencies []versioning.DepUpdate
+	// Tag and PrevTag are this release's tag and the one it follows, which
+	// link the heading to the diff between them. PrevTag is empty for a
+	// release without a comparable predecessor.
+	Tag     string
+	PrevTag string
+	Links   Links
 }
 
 type section struct {
@@ -57,10 +64,25 @@ var sections = []section{
 // all, an "Other" section is appended whose content depends on Entry.Reason
 // (dependency bump, promotion, or initial release).
 func Render(e Entry) string {
-	var b strings.Builder
+	return heading(e, false) + renderBody(e)
+}
 
-	dateStr := e.Date.Format("2006-01-02")
-	fmt.Fprintf(&b, "## [%s] - %s\n\n", e.NewVersion, dateStr)
+// heading renders "## v1.2.0 - 2006-01-02", with the project name before the
+// version when withName is set, and the title linked to the diff from the
+// previous release when there's a link for it.
+func heading(e Entry, withName bool) string {
+	title := e.NewVersion
+	if withName {
+		title = e.Project.Name() + " " + title
+	}
+	if url := e.Links.compare(e.PrevTag, e.Tag); url != "" {
+		title = "[" + title + "](" + url + ")"
+	}
+	return fmt.Sprintf("## %s - %s\n\n", title, e.Date.Format("2006-01-02"))
+}
+
+func renderBody(e Entry) string {
+	var b strings.Builder
 
 	var breaking []conventional.ParsedCommit
 	byType := make(map[conventional.CommitType][]conventional.ParsedCommit)
@@ -81,7 +103,7 @@ func Render(e Entry) string {
 	if len(breaking) > 0 {
 		b.WriteString("### ⚠ Breaking Changes\n\n")
 		for _, c := range breaking {
-			b.WriteString(renderBreakingLine(c))
+			b.WriteString(renderBreakingLine(e.Links, c))
 		}
 		b.WriteString("\n")
 	}
@@ -96,7 +118,7 @@ func Render(e Entry) string {
 		}
 		fmt.Fprintf(&b, "### %s\n\n", s.title)
 		for _, c := range lines {
-			b.WriteString(renderLine(c))
+			b.WriteString(renderLine(e.Links, c))
 		}
 		b.WriteString("\n")
 	}
@@ -116,7 +138,7 @@ func renderFallback(e Entry) string {
 		var b strings.Builder
 		b.WriteString("### Other\n\n")
 		for _, c := range e.Commits {
-			b.WriteString(renderRawLine(c))
+			b.WriteString(renderRawLine(e.Links, c))
 		}
 		b.WriteString("\n")
 		return b.String()
@@ -152,32 +174,34 @@ func renderFallback(e Entry) string {
 	return fmt.Sprintf("### Other\n\n- %s\n\n", line)
 }
 
-func renderRawLine(c conventional.ParsedCommit) string {
+func renderRawLine(l Links, c conventional.ParsedCommit) string {
 	subject := c.Subject
 	if subject == "" {
 		subject = c.Description
 	}
-	return fmt.Sprintf("- %s (%s)\n", subject, c.ShortHash())
+	return fmt.Sprintf("- %s (%s)\n", l.prRefs(subject), l.commit(c.Hash, c.ShortHash()))
 }
 
-func renderLine(c conventional.ParsedCommit) string {
+func renderLine(l Links, c conventional.ParsedCommit) string {
 	desc := c.Description
 	if desc == "" {
 		desc = c.Subject
 	}
+	desc = l.prRefs(desc)
+	hash := l.commit(c.Hash, c.ShortHash())
 	if c.Scope != "" {
-		return fmt.Sprintf("- **%s:** %s (%s)\n", c.Scope, desc, c.ShortHash())
+		return fmt.Sprintf("- **%s:** %s (%s)\n", c.Scope, desc, hash)
 	}
-	return fmt.Sprintf("- %s (%s)\n", desc, c.ShortHash())
+	return fmt.Sprintf("- %s (%s)\n", desc, hash)
 }
 
 // renderBreakingLine is renderLine with the BREAKING CHANGE footer's text
 // quoted under it, inside the same list item.
-func renderBreakingLine(c conventional.ParsedCommit) string {
+func renderBreakingLine(l Links, c conventional.ParsedCommit) string {
 	if c.BreakingNote == "" {
-		return renderLine(c)
+		return renderLine(l, c)
 	}
-	return renderLine(c) + "  > " + c.BreakingNote + "\n"
+	return renderLine(l, c) + "  > " + c.BreakingNote + "\n"
 }
 
 // PerProject writes/prepends a changelog block to each project's CHANGELOG.md
@@ -192,10 +216,10 @@ func PerProject(entries []Entry) error {
 	return nil
 }
 
-// Combined writes a single CHANGELOG.md at the given path. Each entry is
-// rendered with the project name in the heading so users can scan for the
-// project they care about.
-func Combined(path string, entries []Entry) error {
+// Combined writes a single CHANGELOG.md at the given path. With withName,
+// each entry is rendered with the project name in the heading so users can
+// scan for the project they care about.
+func Combined(path string, entries []Entry, withName bool) error {
 	sorted := make([]Entry, len(entries))
 	copy(sorted, entries)
 	sort.Slice(sorted, func(i, j int) bool {
@@ -204,22 +228,16 @@ func Combined(path string, entries []Entry) error {
 
 	var block strings.Builder
 	for _, e := range sorted {
-		block.WriteString(renderCombined(e))
+		block.WriteString(heading(e, withName) + renderBody(e))
 	}
 
 	return prepend(path, block.String())
 }
 
-// renderCombined renders e with the project name in its heading.
-func renderCombined(e Entry) string {
-	dateStr := e.Date.Format("2006-01-02")
-	// strip the per-entry "## [version] - date" header that Render added
-	return fmt.Sprintf("## [%s %s] - %s\n\n", e.Project.Name(), e.NewVersion, dateStr) + stripFirstHeading(Render(e))
-}
-
-// Section is one rendered release. Key is the bracketed text of its heading,
-// which identifies the release within a changelog file. Date is the exact
-// release time, which orders releases from the same day.
+// Section is one rendered release. Key is the text of its heading without
+// the date, "name version" or just the version, which identifies the release
+// within a changelog file. Date is the exact release time, which orders
+// releases from the same day.
 type Section struct {
 	Key  string
 	Body string
@@ -227,15 +245,15 @@ type Section struct {
 }
 
 // Sections renders entries in the given order, with the project name in each
-// heading when combined.
-func Sections(entries []Entry, combined bool) []Section {
+// heading when withName is set.
+func Sections(entries []Entry, withName bool) []Section {
 	out := make([]Section, 0, len(entries))
 	for _, e := range entries {
-		if combined {
-			out = append(out, Section{Key: e.Project.Name() + " " + e.NewVersion, Body: renderCombined(e), Date: e.Date})
-		} else {
-			out = append(out, Section{Key: e.NewVersion, Body: Render(e), Date: e.Date})
+		key := e.NewVersion
+		if withName {
+			key = e.Project.Name() + " " + key
 		}
+		out = append(out, Section{Key: key, Body: heading(e, withName) + renderBody(e), Date: e.Date})
 	}
 	return out
 }
@@ -246,22 +264,21 @@ func Sections(entries []Entry, combined bool) []Section {
 // release section, such as a preamble. Undated text stays on top in its
 // original order, followed by every release, newest first.
 func Splice(existing string, sections []Section, keep func(key string) bool) string {
-	replaced := make(map[string]bool, len(sections))
-	for _, s := range sections {
-		replaced[s.Key] = true
+	replaced := func(key string) bool {
+		return slices.ContainsFunc(sections, func(s Section) bool { return sameRelease(s.Key, key) })
 	}
 
 	var undated []string
 	dated := slices.Clone(sections)
 	rest, _ := strings.CutPrefix(existing, fileHeader)
 	for _, chunk := range splitSections(rest) {
-		key, _ := sectionKey(chunk)
-		if (key != "" && replaced[key]) || !keep(key) {
+		key, date, hasDate := parseHeading(chunk)
+		if (key != "" && replaced(key)) || !keep(key) {
 			continue
 		}
 		// Only the day is in the file, so a kept section sorts below a
 		// regenerated one from the same day.
-		if date, ok := sectionDate(chunk); ok {
+		if hasDate {
 			dated = append(dated, Section{Key: key, Body: chunk, Date: date})
 		} else {
 			undated = append(undated, chunk)
@@ -308,6 +325,15 @@ func SectionProject(key string) string {
 	return name
 }
 
+// sameRelease reports whether two section keys name the same release. A key
+// without a project name matches any project's, so headings written before a
+// changelog dropped or gained project names are still replaced.
+func sameRelease(a, b string) bool {
+	na, va := splitKey(a)
+	nb, vb := splitKey(b)
+	return va == vb && (na == nb || na == "" || nb == "")
+}
+
 // splitKey splits a section key into its project name, empty for a
 // per-project key, and its version, normalized to a "v" prefix for semver.
 func splitKey(key string) (name, version string) {
@@ -322,18 +348,37 @@ func splitKey(key string) (name, version string) {
 	return name, version
 }
 
-// sectionDate returns the date of a "## [key] - 2006-01-02" heading.
-func sectionDate(chunk string) (time.Time, bool) {
-	if _, ok := sectionKey(chunk); !ok {
-		return time.Time{}, false
-	}
-	heading, _, _ := strings.Cut(chunk, "\n")
-	_, date, ok := strings.Cut(heading, "] - ")
+var (
+	headingLinkRe = regexp.MustCompile(`\[([^\]]*)\]\([^)]*\)`)
+	headingDateRe = regexp.MustCompile(`^(.*?)\s+(?:-\s+(\d{4}-\d{2}-\d{2})|\((\d{4}-\d{2}-\d{2})\))\s*$`)
+)
+
+// parseHeading returns the key and date of a release heading: "## v1.2.0 -
+// 2006-01-02", optionally with the title linked, as well as the older
+// "## [v1.2.0] - 2006-01-02" and release-please's "## [1.2.0](url) (2006-01-02)". The key is empty for any other text, except a
+// bracketed title without a date, which still has a key.
+func parseHeading(chunk string) (key string, date time.Time, hasDate bool) {
+	line, _, _ := strings.Cut(chunk, "\n")
+	title, ok := strings.CutPrefix(line, "## ")
 	if !ok {
-		return time.Time{}, false
+		return "", time.Time{}, false
 	}
-	t, err := time.Parse("2006-01-02", strings.TrimSpace(date))
-	return t, err == nil
+	title = headingLinkRe.ReplaceAllString(strings.TrimSpace(title), "$1")
+	m := headingDateRe.FindStringSubmatch(title)
+	if m == nil {
+		if rest, ok := strings.CutPrefix(title, "["); ok {
+			if key, _, ok := strings.Cut(rest, "]"); ok {
+				return key, time.Time{}, false
+			}
+		}
+		return "", time.Time{}, false
+	}
+	t, err := time.Parse("2006-01-02", m[2]+m[3])
+	if err != nil {
+		return "", time.Time{}, false
+	}
+	key = strings.TrimSuffix(strings.TrimPrefix(m[1], "["), "]")
+	return key, t, key != ""
 }
 
 // splitSections splits s before every "## " heading line.
@@ -357,24 +402,6 @@ func splitSections(s string) []string {
 		chunks = append(chunks, s[start:])
 	}
 	return chunks
-}
-
-// sectionKey returns the bracketed text of a "## [key] - date" heading.
-func sectionKey(chunk string) (string, bool) {
-	rest, ok := strings.CutPrefix(chunk, "## [")
-	if !ok {
-		return "", false
-	}
-	key, _, ok := strings.Cut(rest, "]")
-	return key, ok
-}
-
-func stripFirstHeading(s string) string {
-	_, rest, ok := strings.Cut(s, "\n")
-	if !ok {
-		return ""
-	}
-	return strings.TrimLeft(rest, "\n")
 }
 
 func prepend(path, block string) error {
@@ -409,8 +436,7 @@ func prepend(path, block string) error {
 func PRBody(entries []Entry) string {
 	if len(entries) == 1 {
 		e := entries[0]
-		return fmt.Sprintf("## %s (%s)\n\n", e.NewVersion, e.Date.Format("2006-01-02")) +
-			strings.TrimRight(stripFirstHeading(Render(e)), "\n") + "\n"
+		return strings.TrimRight(Render(e), "\n") + "\n"
 	}
 
 	sorted := make([]Entry, len(entries))
@@ -432,7 +458,9 @@ func PRBody(entries []Entry) string {
 		commits []conventional.ParsedCommit
 	}
 	var allBreaking []projBreaking
+	links := make(map[string]Links, len(sorted))
 	for _, e := range sorted {
+		links[e.Project.Name()] = e.Links
 		var breaking []conventional.ParsedCommit
 		for _, c := range e.Commits {
 			if c.Type == conventional.TypeUnknown {
@@ -452,7 +480,7 @@ func PRBody(entries []Entry) string {
 		for _, pb := range allBreaking {
 			fmt.Fprintf(&b, "### %s\n\n", pb.name)
 			for _, c := range pb.commits {
-				b.WriteString(renderBreakingLine(c))
+				b.WriteString(renderBreakingLine(links[pb.name], c))
 			}
 			b.WriteString("\n")
 		}
@@ -486,7 +514,7 @@ func PRBody(entries []Entry) string {
 			nonBreakingRendered = true
 			fmt.Fprintf(&b, "### %s\n\n", s.title)
 			for _, c := range lines {
-				b.WriteString(renderLine(c))
+				b.WriteString(renderLine(e.Links, c))
 			}
 			b.WriteString("\n")
 		}

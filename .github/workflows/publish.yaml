@@ -35,8 +35,8 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: |
-          awk -v v="$VERSION]" '
-            /^## \[/ { if (found) exit; if (index($0, v)) { found = 1; next } }
+          awk -v v="$VERSION" '
+            /^## / { if (found) exit; if (index($0, v "]") || index($0, " " v " - ")) { found = 1; next } }
             found
           ' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
 

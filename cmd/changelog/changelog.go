@@ -76,6 +76,8 @@ Sections are ordered by date, newest first.`,
 
 		cfg := app.State.Config
 		combined := single || cfg.IsSingleProject()
+		withName := combined && !cfg.IsSingleProject()
+		links := changelog.RepoLinks(cfg.Forge)
 		files := map[string][]changelog.Entry{}
 		for _, r := range releases {
 			path := cfg.ChangelogPath()
@@ -90,6 +92,9 @@ Sections are ordered by date, newest first.`,
 				Reason:       r.Reason,
 				Commits:      r.Commits,
 				Dependencies: r.Dependencies,
+				Tag:          r.Tag,
+				PrevTag:      changelog.PrevTag(cfg, r.BumpResult),
+				Links:        links,
 			})
 		}
 		if combined {
@@ -111,7 +116,7 @@ Sections are ordered by date, newest first.`,
 			if since != "" {
 				return true
 			}
-			if !partial || !combined {
+			if !partial || !withName {
 				return false
 			}
 			_, selected := app.State.Projects[changelog.SectionProject(key)]
@@ -119,7 +124,7 @@ Sections are ordered by date, newest first.`,
 		}
 
 		for _, path := range slices.Sorted(maps.Keys(files)) {
-			sections := changelog.Sections(files[path], combined)
+			sections := changelog.Sections(files[path], withName)
 			if !write {
 				fmt.Printf("--- %s ---\n", path)
 				for _, s := range sections {

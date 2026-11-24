@@ -20,7 +20,7 @@ func TestParseRemote(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			host, owner, repo := parseRemote(tt.url)
+			host, owner, repo := ParseRemote(tt.url)
 			if host != tt.wantHost || owner != tt.wantOwner || repo != tt.wantRepo {
 				t.Errorf("got (%q, %q, %q), want (%q, %q, %q)",
 					host, owner, repo, tt.wantHost, tt.wantOwner, tt.wantRepo)

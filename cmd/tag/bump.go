@@ -343,6 +343,8 @@ func overrideFromFlag(cmd *cobra.Command) (*versioning.BumpKind, error) {
 
 func buildEntries(results []versioning.BumpResult) []changelog.Entry {
 	now := time.Now().UTC()
+	cfg := app.State.Config
+	links := changelog.RepoLinks(cfg.Forge)
 	out := make([]changelog.Entry, 0, len(results))
 	for _, r := range results {
 		out = append(out, changelog.Entry{
@@ -353,6 +355,9 @@ func buildEntries(results []versioning.BumpResult) []changelog.Entry {
 			Reason:       r.Reason,
 			Commits:      r.Commits,
 			Dependencies: r.Dependencies,
+			Tag:          cfg.TagFor(r.Project.Name(), r.NewVersion),
+			PrevTag:      changelog.PrevTag(cfg, r),
+			Links:        links,
 		})
 	}
 	return out
@@ -373,7 +378,7 @@ func writeChangelogs(entries []changelog.Entry) (map[string]string, []string, er
 	useSingle := singleChangelog || cfg.IsSingleProject()
 	if useSingle {
 		path := cfg.ChangelogPath()
-		if err := changelog.Combined(path, entries); err != nil {
+		if err := changelog.Combined(path, entries, !cfg.IsSingleProject()); err != nil {
 			return nil, nil, fmt.Errorf("writing combined changelog: %w", err)
 		}
 		for _, e := range entries {
