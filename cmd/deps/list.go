@@ -9,10 +9,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() {
-	listCmd.SilenceUsage = true
-}
-
 type listEntry struct {
 	Project   string   `json:"project"`
 	DependsOn []string `json:"dependsOn"`

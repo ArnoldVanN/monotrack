@@ -22,7 +22,7 @@ import (
 )
 
 func init() {
-	bumpCmd.Flags().BoolVarP(&preRelease, "pre-release", "p", false, "use a pre-relelease version")
+	bumpCmd.Flags().BoolVarP(&preRelease, "pre-release", "p", false, "use a pre-release version")
 	bumpCmd.Flags().StringVarP(&component, "component", "c", "", "force a version component to bump (major, minor, patch). When unset, the bump kind is derived per-project from conventional commit messages")
 	bumpCmd.Flags().BoolVar(&dry, "dry", false, "Run the command without making any changes")
 	bumpCmd.Flags().BoolVar(&singleChangelog, "single-changelog", false, "write a single root CHANGELOG.md grouped by project instead of one per project")
