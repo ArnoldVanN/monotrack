@@ -416,6 +416,24 @@ Git pushes (`tag bump`) authenticate using the credential `actions/checkout` per
 
 The output of the CLI
 
+### `released`
+
+JSON array of the projects tagged by this run, `[]` when none. Set when the output is JSON (`args: -o json`).
+
+### `versions`
+
+JSON object mapping each project tagged by this run to its version, e.g. `{"api":"v1.2.0","web":"v0.4.1"}`, `{}` when none. Set when the output is JSON.
+
+### `tags`
+
+JSON object mapping each project tagged by this run to its git tag, e.g. `{"api":"api/v1.2.0","web":"web/v0.4.1"}`, `{}` when none. Use it rather than the version wherever a git ref is needed. Set when the output is JSON.
+
+### `pr-url`
+
+URL of the release PR opened or updated by this run, empty when none. Set when the output is JSON.
+
+Released projects and the release PR are also surfaced as `::notice::` annotations.
+
 ## Example usage
 
 Perform operations on all projects including internal dependencies:
@@ -437,7 +455,7 @@ Perform operations on all projects including internal dependencies:
 Bump tags for projects that have changed between their latest tag and HEAD.
 
 > [!NOTE]
-> The default flow opens a release PR rather than pushing the changelog commit directly, so it works against a protected branch without bypass — the PR goes through normal review/merge. If you pass `--no-pr` to push the changelog commit straight to the branch, the workflow needs an identity that can push to the protected branch: the default `GITHUB_TOKEN` cannot bypass branch protection, so use a GitHub App (or PAT) added to the branch's bypass list and pass its token to `actions/checkout`. Alternatively, pass `--no-pr --no-commit-changelog` so only tags get pushed.
+> The default flow opens a release PR rather than pushing the changelog commit directly, so it works against a protected branch without bypass. If you pass `--no-pr` to push the changelog commit straight to the branch, the workflow needs an identity that can push to the protected branch: the default `GITHUB_TOKEN` cannot bypass branch protection, so use a GitHub App (or PAT) added to the branch's bypass list and pass its token to `actions/checkout`. Alternatively, pass `--no-pr --no-commit-changelog` so only tags get pushed.
 
 ```yaml
 permissions:
@@ -447,7 +465,9 @@ jobs:
   bump:
     runs-on: ubuntu-latest
     outputs:
-      projects: ${{ steps.monotrack_json.outputs.projects }}
+      released: ${{ steps.monotrack.outputs.released }}
+      api-version: ${{ fromJson(steps.monotrack.outputs.versions).api }}
+      api-tag: ${{ fromJson(steps.monotrack.outputs.tags).api }}
 
     steps:
       # Mint a short-lived installation token for the release bot App
@@ -474,31 +494,32 @@ jobs:
           # version is optional; when unset it tracks the action ref's major (e.g. `v0`)
           command: tag bump # Optional, defaults to 'tag bump'
           token: ${{ steps.app-token.outputs.token }} # Optional, opens the release PR as the App
-          args: -o json --pre-release # Optional
+          args: -o json --pre-release # Required for the released/versions/tags/pr-url outputs
           config: monotrack.yaml # Optional
 
-      - name: Output monotrack result
-        id: monotrack_json
-        shell: bash
-        run: |
-          OUTPUT='${{ steps.monotrack.outputs.output }}'
-          echo "projects<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$OUTPUT" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
-
-  # Do something with the output like build, test, release, etc
+  # One job per released project
   build:
-    needs:
-      - bump
+    needs: bump
+    if: needs.bump.outputs.released != '[]'
     strategy:
-      matrix: # Since we set --output to json, we can create a matrix based on that here
-        include: ${{ fromJson(needs.bump.outputs.projects) }}
+      matrix:
+        include: ${{ fromJson(needs.bump.outputs.released) }}
     uses: ./.github/workflows/build.yaml
     with:
       app: ${{ matrix.name }}
       path: ${{ matrix.path }}
       version: ${{ matrix.version }}
+      ref: ${{ matrix.tag }}
       type: ${{ matrix.type }}
+
+  # Only when a specific project was released
+  deploy-api:
+    needs: bump
+    if: needs.bump.outputs.api-version != ''
+    uses: ./.github/workflows/deploy.yaml
+    with:
+      version: ${{ needs.bump.outputs.api-version }}
+      ref: ${{ needs.bump.outputs.api-tag }}
 ```
 
 For a `--dry` invocation that only computes the project matrix and doesn't push (e.g., gating a build matrix before the real bump), the App token isn't needed — `actions/checkout` with the default `GITHUB_TOKEN` is fine.
@@ -638,14 +659,14 @@ Use `--unreleased` for "what needs releasing", and the default range mode for "w
 
 ```bash
 monotrack tag bump --head 8a059ec --projects api -o json
-[{"name":"api","path":"apps/api","version":"v0.0.3","type":"go"}]
+[{"name":"api","path":"apps/api","type":"go","version":"v0.0.3","tag":"api/v0.0.3"}]
 ```
 
 #### Use prereleases
 
 ```bash
 monotrack tag bump --head 8a059ec --projects api -o json -p
-[{"name":"api","path":"apps/api","version":"v0.0.4-rc.1","type":"go"}}]
+[{"name":"api","path":"apps/api","type":"go","version":"v0.0.4-rc.1","tag":"api/v0.0.4-rc.1"}]
 ```
 
 #### Promote a prerelease to a release
@@ -655,7 +676,7 @@ When a project's latest tag is a prerelease (e.g. `api/v0.1.0-rc.3`) and `tag bu
 ```bash
 # latest tag: api/v0.1.0-rc.3, no new commits under apps/api
 monotrack tag bump --projects api -o json
-[{"name":"api","path":"apps/api","version":"v0.1.0","type":"go"}]
+[{"name":"api","path":"apps/api","type":"go","version":"v0.1.0","tag":"api/v0.1.0"}]
 ```
 
 This fits the branch-promotion model: RCs accumulate on `main` (run with `-p`), then a merge into `production` runs without `-p` and converts the latest RC into a release tag.

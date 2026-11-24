@@ -166,7 +166,11 @@ func runDirectBump(cmd *cobra.Command, head string, jsonOut bool) error {
 		}
 	}
 
-	return emitResults(results, changelogPaths, "", "", jsonOut)
+	status := "released"
+	if dry {
+		status = ""
+	}
+	return emitResults(results, changelogPaths, status, "", jsonOut)
 }
 
 func runProposePhase(cmd *cobra.Command, head, baseBranch, manifestPath string, jsonOut bool) error {
@@ -409,6 +413,7 @@ func emitResults(results []versioning.BumpResult, changelogPaths map[string]stri
 					Type: string(r.Project.GetType()),
 				},
 				Version:       r.NewVersion,
+				Tag:           app.State.Config.TagFor(r.Project.Name(), r.NewVersion),
 				OldVersion:    r.OldVersion,
 				BumpKind:      string(r.Kind),
 				ChangelogPath: changelogPaths[r.Project.Name()],

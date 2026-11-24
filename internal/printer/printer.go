@@ -9,6 +9,7 @@ type Output struct {
 type BumpOutput struct {
 	Output        `json:",inline"`
 	Version       string `json:"version"`
+	Tag           string `json:"tag"`
 	OldVersion    string `json:"oldVersion,omitempty"`
 	BumpKind      string `json:"bumpKind,omitempty"`
 	ChangelogPath string `json:"changelogPath,omitempty"`

@@ -30,6 +30,18 @@ outputs:
   output:
     value: ${{ steps.run.outputs.output }}
     description: "The CLI output"
+  released:
+    value: ${{ steps.run.outputs.released }}
+    description: "JSON array of the projects tagged by `tag bump -o json`, `[]` when none"
+  versions:
+    value: ${{ steps.run.outputs.versions }}
+    description: "JSON object mapping each project tagged by `tag bump -o json` to its version, `{}` when none"
+  tags:
+    value: ${{ steps.run.outputs.tags }}
+    description: "JSON object mapping each project tagged by `tag bump -o json` to its git tag, `{}` when none"
+  pr-url:
+    value: ${{ steps.run.outputs.pr-url }}
+    description: "URL of the release PR opened or updated by `tag bump -o json`, empty when none"
 
 branding:
   icon: book-open
@@ -188,3 +200,20 @@ runs:
           echo "$OUTPUT"
           echo "$DELIM"
         } >> "$GITHUB_OUTPUT"
+
+        if jq -e 'type == "array"' >/dev/null 2>&1 <<< "$OUTPUT"; then
+          RELEASED="$(jq -c '[.[] | select(.status == "released")]' <<< "$OUTPUT")"
+          VERSIONS="$(jq -c 'map({(.name): .version}) | add // {}' <<< "$RELEASED")"
+          TAGS="$(jq -c 'map({(.name): .tag}) | add // {}' <<< "$RELEASED")"
+          PR_URL="$(jq -r '[.[] | select(.status == "proposed") | .prUrl // empty][0] // empty' <<< "$OUTPUT")"
+
+          jq -r '.[] | "::notice::Released \(.tag)"' <<< "$RELEASED"
+          [ -n "$PR_URL" ] && echo "::notice::Release PR: $PR_URL"
+
+          {
+            echo "released=$RELEASED"
+            echo "versions=$VERSIONS"
+            echo "tags=$TAGS"
+            echo "pr-url=$PR_URL"
+          } >> "$GITHUB_OUTPUT"
+        fi
