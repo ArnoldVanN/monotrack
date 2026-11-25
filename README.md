@@ -1,12 +1,197 @@
-## Motivation
+# Monotrack
 
-While there already exist plenty of tools to help with code verisoning, support across languages, specifically for monorepos, may be considered insufficient.  
-Monotrack is a generic solution to help ease the pains of CI in a monorepo.  
-Monotrack allows you to easily run jobs, create tags, write changelogs and review these changes for projects that have actually changed,  
-while taking into consideration local internal dependency trees.
+Monotrack versions, tags and writes changelogs for the projects in a monorepo that actually changed, following internal dependencies between them. It runs as a GitHub Action or as a standalone CLI.
 
 > [!NOTE]
-> **Single-project repos** are supported with no extra flags. When `monotrack.yaml` defines exactly one project, monotrack switches behavior automatically: tags are emitted as `vX.Y.Z` (no `<name>/` prefix), and the project's `path` can be `.` or omitted to mean the repo root. The `CHANGELOG.md` is written at the repo root (or at `changelog.path` in the config).
+> [Single-project repos](#single-project-repos) are supported with no extra flags.
+
+## GitHub Action
+
+### Usage
+
+Perform operations on all projects including internal dependencies:
+
+```yaml
+- uses: actions/checkout@v5
+  with:
+    fetch-depth: 0 # Required
+
+- name: Run Monotrack CLI
+  id: monotrack
+  uses: arnoldvann/monotrack@v0
+  with:
+    command: compare
+    args: -o json
+    config: monotrack.yaml
+```
+
+Bump tags for projects that have changed between their latest tag and HEAD.
+
+> [!NOTE]
+> The default flow opens a release PR rather than pushing the changelog commit directly, so it works against a protected branch without bypass. If you pass `--no-pr` to push the changelog commit straight to the branch, the workflow needs an identity that can push to the protected branch: the default `GITHUB_TOKEN` cannot bypass branch protection, so use a GitHub App (or PAT) added to the branch's bypass list and pass its token to `actions/checkout`. Alternatively, pass `--no-pr --no-commit-changelog` so only tags get pushed.
+
+```yaml
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    outputs:
+      released: ${{ steps.monotrack.outputs.released }}
+      api-version: ${{ fromJson(steps.monotrack.outputs.versions).api }}
+      api-tag: ${{ fromJson(steps.monotrack.outputs.tags).api }}
+
+    steps:
+      # Mint a short-lived installation token for the release bot App
+      - uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # Required
+          token: ${{ steps.app-token.outputs.token }} # The push credential
+
+      - name: Configure git user
+        run: |
+          git config user.name "release-bot[bot]"
+          git config user.email "${{ vars.RELEASE_BOT_APP_ID }}+release-bot[bot]@users.noreply.github.com"
+
+      - name: Run Monotrack CLI
+        id: monotrack
+        uses: arnoldvann/monotrack@v0
+        with:
+          # version is optional; when unset it tracks the action ref's major (e.g. `v0`)
+          command: tag bump # Optional, defaults to 'tag bump'
+          token: ${{ steps.app-token.outputs.token }} # Optional, opens the release PR as the App
+          args: -o json --pre-release # Required for the released/versions/tags/pr-url outputs
+          config: monotrack.yaml # Optional
+
+  # One job per released project
+  build:
+    needs: bump
+    if: needs.bump.outputs.released != '[]'
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.bump.outputs.released) }}
+    uses: ./.github/workflows/build.yaml
+    with:
+      app: ${{ matrix.name }}
+      path: ${{ matrix.path }}
+      version: ${{ matrix.version }}
+      ref: ${{ matrix.tag }}
+      type: ${{ matrix.type }}
+
+  # Only when a specific project was released
+  deploy-api:
+    needs: bump
+    if: needs.bump.outputs.api-version != ''
+    uses: ./.github/workflows/deploy.yaml
+    with:
+      version: ${{ needs.bump.outputs.api-version }}
+      ref: ${{ needs.bump.outputs.api-tag }}
+```
+
+For a `--dry` invocation that only computes the project matrix and doesn't push (e.g., gating a build matrix before the real bump), the App token isn't needed — `actions/checkout` with the default `GITHUB_TOKEN` is fine.
+
+> [!TIP]  
+> For a full working example, see the [testing repo](https://github.com/ArnoldVanN/monotrack-testing)
+
+#### Scheduled pruning
+
+Run [`tag prune`](#prune-stale-prerelease-tags) on a schedule to keep prerelease tags from accumulating. The job needs `contents: write` (to delete tags on origin) and a full-history checkout (`fetch-depth: 0`).
+
+```yaml
+name: prune-tags
+on:
+  schedule:
+    - cron: "0 3 * * 0" # weekly, Sundays 03:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # Required: prune needs full history + tags
+
+      - name: Prune stale prerelease tags
+        uses: arnoldvann/monotrack@v0
+        with:
+          command: tag prune
+          args: --apply # omit --apply to only log the plan
+          config: monotrack.yaml
+```
+
+> [!TIP]
+> Leave off `--apply` on the first run (or trigger via `workflow_dispatch`) to review the plan before anything is deleted. If your tags are split across multiple configs, add one step per config.
+
+### Inputs
+
+#### `command`
+
+**Optional** The command to run. Defaults to `tag bump`
+
+#### `base`
+
+**Optional** The base SHA used to compare. When unspecified, it is inferred from the event payload (`push` uses `.before`, `pull_request` uses the base SHA). Used by `compare`; `tag bump` ignores it and always measures from each project's own latest tag.
+
+#### `head`
+
+**Optional** The HEAD SHA used to compare, might be required in special cases, like when triggering a workflow manually
+
+#### `args`
+
+**Optional** Arguments to pass to the command
+
+#### `config`
+
+**Optional** Name of the configuration file
+
+#### `version`
+
+**Optional** CLI version (docker image tag). When unset, defaults to the moving `v<major>` tag derived from the action ref — e.g. `uses: arnoldvann/monotrack@v0.7.3` resolves to image `v0`, which tracks the latest patch of that major. Set explicitly when pinning the action to a branch or SHA; otherwise the action errors out.
+
+#### `token`
+
+**Optional** Token used for GitHub API calls, such as opening or updating the release PR. Defaults to `github.token`.
+
+A PR opened with the default `GITHUB_TOKEN` is authored by `github-actions[bot]`, so `pull_request` workflows on it wait for maintainer approval. Pass a GitHub App or PAT token here to have them run normally.
+
+### Authentication
+
+Git pushes (`tag bump`) authenticate using the credential `actions/checkout` persisted in the workspace's `.git/config`; API calls such as opening the release PR use the `token` input. To use a token other than the default `GITHUB_TOKEN` (e.g. a GitHub App token that can bypass branch protection), pass it on both `actions/checkout`'s `token:` input and this action's `token:` input. See the example below.
+
+### Outputs
+
+#### `output`
+
+The output of the CLI
+
+#### `released`
+
+JSON array of the projects tagged by this run, `[]` when none. Set when the output is JSON (`args: -o json`).
+
+#### `versions`
+
+JSON object mapping each project tagged by this run to its version, e.g. `{"api":"v1.2.0","web":"v0.4.1"}`, `{}` when none. Set when the output is JSON.
+
+#### `tags`
+
+JSON object mapping each project tagged by this run to its git tag, e.g. `{"api":"api/v1.2.0","web":"web/v0.4.1"}`, `{}` when none. Use it rather than the version wherever a git ref is needed. Set when the output is JSON.
+
+#### `pr-url`
+
+URL of the release PR opened or updated by this run, empty when none. Set when the output is JSON.
+
+Released projects and the release PR are also surfaced as `::notice::` annotations.
 
 ## Release flow
 
@@ -175,6 +360,14 @@ projects:
     type: go
     path: packages/nested-shared
 ```
+
+### Single-project repos
+
+When `monotrack.yaml` defines exactly one project, monotrack switches behavior automatically:
+
+- Tags are emitted as `vX.Y.Z`, with no `<name>/` prefix.
+- The project's `path` can be `.` or omitted to mean the repo root.
+- `CHANGELOG.md` is written at the repo root, or at `changelog.path` in the config.
 
 ### Ignoring paths
 
@@ -371,194 +564,6 @@ projects:
 An edge that is both an import and something the resolver can't see, like a Dockerfile copying files out of the dependency, is treated as an import only. Keep `granularity: project` on such projects.
 
 Imports are read for the host's `GOOS`/`GOARCH` and default build tags. Set `GOOS`, `GOARCH` and `GOFLAGS=-tags=...` to match the release build when an import sits behind a constraint. Without a working Go toolchain, monotrack warns and falls back to project granularity, which only over-triggers. Over-triggering costs CI time; under-triggering ships a stale artifact.
-
-## Action
-
-## Inputs
-
-### `command`
-
-**Optional** The command to run. Defaults to `tag bump`
-
-### `base`
-
-**Optional** The base SHA used to compare. When unspecified, it is inferred from the event payload (`push` uses `.before`, `pull_request` uses the base SHA). Used by `compare`; `tag bump` ignores it and always measures from each project's own latest tag.
-
-### `head`
-
-**Optional** The HEAD SHA used to compare, might be required in special cases, like when triggering a workflow manually
-
-### `args`
-
-**Optional** Arguments to pass to the command
-
-### `config`
-
-**Optional** Name of the configuration file
-
-### `version`
-
-**Optional** CLI version (docker image tag). When unset, defaults to the moving `v<major>` tag derived from the action ref — e.g. `uses: arnoldvann/monotrack@v0.7.3` resolves to image `v0`, which tracks the latest patch of that major. Set explicitly when pinning the action to a branch or SHA; otherwise the action errors out.
-
-### `token`
-
-**Optional** Token used for GitHub API calls, such as opening or updating the release PR. Defaults to `github.token`.
-
-A PR opened with the default `GITHUB_TOKEN` is authored by `github-actions[bot]`, so `pull_request` workflows on it wait for maintainer approval. Pass a GitHub App or PAT token here to have them run normally.
-
-### Authentication
-
-Git pushes (`tag bump`) authenticate using the credential `actions/checkout` persisted in the workspace's `.git/config`; API calls such as opening the release PR use the `token` input. To use a token other than the default `GITHUB_TOKEN` (e.g. a GitHub App token that can bypass branch protection), pass it on both `actions/checkout`'s `token:` input and this action's `token:` input. See the example below.
-
-## Outputs
-
-### `output`
-
-The output of the CLI
-
-### `released`
-
-JSON array of the projects tagged by this run, `[]` when none. Set when the output is JSON (`args: -o json`).
-
-### `versions`
-
-JSON object mapping each project tagged by this run to its version, e.g. `{"api":"v1.2.0","web":"v0.4.1"}`, `{}` when none. Set when the output is JSON.
-
-### `tags`
-
-JSON object mapping each project tagged by this run to its git tag, e.g. `{"api":"api/v1.2.0","web":"web/v0.4.1"}`, `{}` when none. Use it rather than the version wherever a git ref is needed. Set when the output is JSON.
-
-### `pr-url`
-
-URL of the release PR opened or updated by this run, empty when none. Set when the output is JSON.
-
-Released projects and the release PR are also surfaced as `::notice::` annotations.
-
-## Example usage
-
-Perform operations on all projects including internal dependencies:
-
-```yaml
-- uses: actions/checkout@v5
-  with:
-    fetch-depth: 0 # Required
-
-- name: Run Monotrack CLI
-  id: monotrack
-  uses: arnoldvann/monotrack@v0
-  with:
-    command: compare
-    args: -o json
-    config: monotrack.yaml
-```
-
-Bump tags for projects that have changed between their latest tag and HEAD.
-
-> [!NOTE]
-> The default flow opens a release PR rather than pushing the changelog commit directly, so it works against a protected branch without bypass. If you pass `--no-pr` to push the changelog commit straight to the branch, the workflow needs an identity that can push to the protected branch: the default `GITHUB_TOKEN` cannot bypass branch protection, so use a GitHub App (or PAT) added to the branch's bypass list and pass its token to `actions/checkout`. Alternatively, pass `--no-pr --no-commit-changelog` so only tags get pushed.
-
-```yaml
-permissions:
-  contents: write
-
-jobs:
-  bump:
-    runs-on: ubuntu-latest
-    outputs:
-      released: ${{ steps.monotrack.outputs.released }}
-      api-version: ${{ fromJson(steps.monotrack.outputs.versions).api }}
-      api-tag: ${{ fromJson(steps.monotrack.outputs.tags).api }}
-
-    steps:
-      # Mint a short-lived installation token for the release bot App
-      - uses: actions/create-github-app-token@v1
-        id: app-token
-        with:
-          app-id: ${{ vars.RELEASE_BOT_APP_ID }}
-          private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
-
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0 # Required
-          token: ${{ steps.app-token.outputs.token }} # The push credential
-
-      - name: Configure git user
-        run: |
-          git config user.name "release-bot[bot]"
-          git config user.email "${{ vars.RELEASE_BOT_APP_ID }}+release-bot[bot]@users.noreply.github.com"
-
-      - name: Run Monotrack CLI
-        id: monotrack
-        uses: arnoldvann/monotrack@v0
-        with:
-          # version is optional; when unset it tracks the action ref's major (e.g. `v0`)
-          command: tag bump # Optional, defaults to 'tag bump'
-          token: ${{ steps.app-token.outputs.token }} # Optional, opens the release PR as the App
-          args: -o json --pre-release # Required for the released/versions/tags/pr-url outputs
-          config: monotrack.yaml # Optional
-
-  # One job per released project
-  build:
-    needs: bump
-    if: needs.bump.outputs.released != '[]'
-    strategy:
-      matrix:
-        include: ${{ fromJson(needs.bump.outputs.released) }}
-    uses: ./.github/workflows/build.yaml
-    with:
-      app: ${{ matrix.name }}
-      path: ${{ matrix.path }}
-      version: ${{ matrix.version }}
-      ref: ${{ matrix.tag }}
-      type: ${{ matrix.type }}
-
-  # Only when a specific project was released
-  deploy-api:
-    needs: bump
-    if: needs.bump.outputs.api-version != ''
-    uses: ./.github/workflows/deploy.yaml
-    with:
-      version: ${{ needs.bump.outputs.api-version }}
-      ref: ${{ needs.bump.outputs.api-tag }}
-```
-
-For a `--dry` invocation that only computes the project matrix and doesn't push (e.g., gating a build matrix before the real bump), the App token isn't needed — `actions/checkout` with the default `GITHUB_TOKEN` is fine.
-
-> [!TIP]  
-> For a full working example, see the [testing repo](https://github.com/ArnoldVanN/monotrack-testing)
-
-### Scheduled pruning
-
-Run [`tag prune`](#prune-stale-prerelease-tags) on a schedule to keep prerelease tags from accumulating. The job needs `contents: write` (to delete tags on origin) and a full-history checkout (`fetch-depth: 0`).
-
-```yaml
-name: prune-tags
-on:
-  schedule:
-    - cron: "0 3 * * 0" # weekly, Sundays 03:00 UTC
-  workflow_dispatch: {}
-
-permissions:
-  contents: write
-
-jobs:
-  prune:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0 # Required: prune needs full history + tags
-
-      - name: Prune stale prerelease tags
-        uses: arnoldvann/monotrack@v0
-        with:
-          command: tag prune
-          args: --apply # omit --apply to only log the plan
-          config: monotrack.yaml
-```
-
-> [!TIP]
-> Leave off `--apply` on the first run (or trigger via `workflow_dispatch`) to review the plan before anything is deleted. If your tags are split across multiple configs, add one step per config.
 
 ## CLI
 
